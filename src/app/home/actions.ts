@@ -72,6 +72,7 @@ export async function saveDishPreferenceAction(
   await upsertDishPreference(user.id, forDish, { wants, swapDish, note });
 
   revalidatePath("/home");
+  revalidatePath("/preferences");
   return { ok: true };
 }
 
@@ -88,5 +89,6 @@ export async function removeDishPreferenceAction(
   });
 
   revalidatePath("/home");
+  revalidatePath("/preferences");
   return { ok: true };
 }

@@ -1,11 +1,9 @@
-import { requireUser } from "@/lib/auth";
+import { requireUser, canOrder } from "@/lib/auth";
 import { todayKey, formatDisplayDate } from "@/lib/dates";
 import { effectiveCutoff } from "@/lib/cutoff";
 import { getMenuDay } from "@/lib/menu-data";
-import { getDefaultDishes } from "@/lib/settings";
 import {
   getPreferenceForDish,
-  getUserDishPreferences,
   preferenceToInitial,
 } from "@/lib/preferences";
 import { id } from "@/lib/id";
@@ -15,7 +13,6 @@ import { PageShell, Card } from "@/components/ui";
 import { AppNav } from "@/components/nav";
 import { DatePicker } from "@/components/date-picker";
 import { ResponseForm } from "@/components/response-form";
-import { DishPreferencesCard } from "@/components/dish-preferences-card";
 import { PushSubscribe } from "@/components/push-subscribe";
 
 export default async function MemberHomePage({
@@ -26,15 +23,10 @@ export default async function MemberHomePage({
   const user = await requireUser();
   const params = await searchParams;
   const dateKey = params.date ?? todayKey();
-  const [defaultDishes, preferences, menuDay] = await Promise.all([
-    getDefaultDishes(),
-    getUserDishPreferences(user.id),
-    getMenuDay(dateKey),
-  ]);
-  const { settings, menu, locked } = menuDay;
+  const { settings, menu, locked } = await getMenuDay(dateKey);
   const myResponse = menu?.responses.find((r) => r.userId === user.id);
   const dishPreference =
-    menu && user.role === "member"
+    menu && canOrder(user)
       ? await getPreferenceForDish(user.id, menu.dish)
       : null;
   const responseInitial = myResponse ?? preferenceToInitial(dishPreference);
@@ -46,10 +38,6 @@ export default async function MemberHomePage({
       <PushSubscribe onSave={savePushSubscription} />
 
       <DatePicker key={dateKey} value={dateKey} todayKey={todayKey()} basePath="/home" />
-
-      {user.role === "member" && defaultDishes.length > 0 && (
-        <DishPreferencesCard dishes={defaultDishes} preferences={preferences} />
-      )}
 
       {menu ? (
         <>
@@ -76,7 +64,7 @@ export default async function MemberHomePage({
             )}
           </Card>
 
-          {user.role === "member" && (
+          {canOrder(user) && (
             <ResponseForm
               action={submitResponseAction}
               locked={locked}
