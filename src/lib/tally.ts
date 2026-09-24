@@ -17,6 +17,12 @@ export function buildTally(menuDish: string, responses: ResponseRow[]) {
     if (r.note?.trim()) notes.push({ name: r.user.name, note: r.note.trim() });
   }
 
-  const parts = [...counts.entries()].map(([dish, count]) => id.tally.portion(count, dish));
-  return { summary: parts.join(", ") || id.tally.empty, notes };
+  const breakdown = [...counts.entries()].map(([dish, count]) => ({ dish, count }));
+  const parts = breakdown.map(({ dish, count }) => id.tally.portion(count, dish));
+  return {
+    summary: parts.join(", ") || id.tally.empty,
+    breakdown,
+    total: responses.length,
+    notes,
+  };
 }

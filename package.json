@@ -10,7 +10,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
-    "test:unit": "tsx src/lib/__tests__/cutoff.test.ts && tsx src/lib/__tests__/auth.test.ts",
+    "test:unit": "tsx src/lib/__tests__/cutoff.test.ts && tsx src/lib/__tests__/auth.test.ts && tsx src/lib/__tests__/whatsapp.test.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

@@ -40,7 +40,7 @@ export async function postMenuAction(
   if (!existing.menu) {
     const cutoff = effectiveCutoff(settings.standingCutoff, cutoffOverride);
     const members = await db.user.findMany({
-      where: { role: "member" },
+      where: { role: { not: "yono" } },
       select: { id: true },
     });
     await sendPush(members.map((m) => m.id), {
