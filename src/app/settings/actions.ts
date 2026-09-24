@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireYono, hashPin } from "@/lib/auth";
+import { requireAdmin, hashPin } from "@/lib/auth";
 import { parseHHMM } from "@/lib/cutoff";
 import { normalizeDishKey, parseDefaultDishes } from "@/lib/dishes";
 import { getSettings } from "@/lib/settings";
@@ -14,7 +15,7 @@ export async function updateSettingsAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireYono();
+  await requireAdmin();
 
   const standingCutoff = String(formData.get("standingCutoff") ?? "").trim();
   const reminderTime = String(formData.get("reminderTime") ?? "").trim();
@@ -37,10 +38,12 @@ export async function addMemberAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireYono();
+  await requireAdmin();
 
   const name = String(formData.get("name") ?? "").trim();
   const pin = String(formData.get("pin") ?? "").trim();
+  const rawRole = String(formData.get("role") ?? "member").trim();
+  const role: Role = rawRole === "admin" ? "admin" : "member";
 
   if (!name || !pin) return { error: id.errors.namePinRequired };
   if (pin.length < 4) return { error: id.errors.pinMinLength };
@@ -49,7 +52,7 @@ export async function addMemberAction(
   if (exists) return { error: id.errors.nameTaken };
 
   await db.user.create({
-    data: { name, pinHash: await hashPin(pin), role: "member" },
+    data: { name, pinHash: await hashPin(pin), role },
   });
 
   revalidatePath("/settings");
@@ -60,10 +63,16 @@ export async function removeMemberAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireYono();
+  const currentAdmin = await requireAdmin();
   const memberId = String(formData.get("memberId") ?? "");
-  const member = await db.user.findUnique({ where: { id: memberId } });
-  if (!member || member.role !== "member") return { error: id.errors.memberNotFound };
+  if (memberId === currentAdmin.id) {
+    return { error: id.errors.cannotRemoveSelf };
+  }
+
+  const target = await db.user.findUnique({ where: { id: memberId } });
+  if (!target) return { error: id.errors.memberNotFound };
+  if (target.role === "yono") return { error: id.errors.cannotRemoveYono };
+
   await db.user.delete({ where: { id: memberId } });
   revalidatePath("/settings");
   return { ok: true };
@@ -73,11 +82,12 @@ export async function resetPinAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireYono();
+  await requireAdmin();
 
   const memberId = String(formData.get("memberId") ?? "");
   const pin = String(formData.get("pin") ?? "").trim();
   if (!memberId || !pin) return { error: id.errors.memberPinRequired };
+  if (pin.length < 4) return { error: id.errors.pinMinLength };
 
   const member = await db.user.findUnique({ where: { id: memberId } });
   if (!member) return { error: id.errors.memberNotFound };
@@ -95,7 +105,7 @@ export async function addDefaultDishAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireYono();
+  await requireAdmin();
 
   const dish = String(formData.get("dish") ?? "").trim();
   if (!dish) return { error: id.errors.dishRequired };
@@ -115,6 +125,7 @@ export async function addDefaultDishAction(
   revalidatePath("/settings");
   revalidatePath("/yono");
   revalidatePath("/home");
+  revalidatePath("/preferences");
   return { ok: true };
 }
 
@@ -122,7 +133,7 @@ export async function removeDefaultDishAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireYono();
+  await requireAdmin();
 
   const dish = String(formData.get("dish") ?? "").trim();
   if (!dish) return { error: id.errors.dishRequired };
@@ -142,5 +153,6 @@ export async function removeDefaultDishAction(
   revalidatePath("/settings");
   revalidatePath("/yono");
   revalidatePath("/home");
+  revalidatePath("/preferences");
   return { ok: true };
 }

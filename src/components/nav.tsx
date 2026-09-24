@@ -9,7 +9,7 @@ export function AppNav({ role }: { role: Role }) {
 
   return (
     <nav className="flex flex-wrap gap-2">
-      {role === "yono" ? (
+      {role === "yono" && (
         <>
           <Link href="/yono" className="neo-btn neo-btn-ghost text-sm">
             {t.kitchen}
@@ -18,10 +18,34 @@ export function AppNav({ role }: { role: Role }) {
             {t.settings}
           </Link>
         </>
-      ) : (
-        <Link href="/home" className="neo-btn neo-btn-ghost text-sm">
-          {t.home}
-        </Link>
+      )}
+
+      {role === "admin" && (
+        <>
+          <Link href="/home" className="neo-btn neo-btn-ghost text-sm">
+            {t.home}
+          </Link>
+          <Link href="/yono" className="neo-btn neo-btn-ghost text-sm">
+            {t.kitchen}
+          </Link>
+          <Link href="/preferences" className="neo-btn neo-btn-ghost text-sm">
+            {t.preferences}
+          </Link>
+          <Link href="/settings" className="neo-btn neo-btn-ghost text-sm">
+            {t.settings}
+          </Link>
+        </>
+      )}
+
+      {role === "member" && (
+        <>
+          <Link href="/home" className="neo-btn neo-btn-ghost text-sm">
+            {t.home}
+          </Link>
+          <Link href="/preferences" className="neo-btn neo-btn-ghost text-sm">
+            {t.preferences}
+          </Link>
+        </>
       )}
       <form action={logoutAction}>
         <Button type="submit" variant="ghost" className="text-sm">

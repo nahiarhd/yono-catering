@@ -27,8 +27,17 @@ export function proxy(request: NextRequest) {
   }
 
   if (
-    (pathname.startsWith("/yono") || pathname.startsWith("/settings")) &&
-    session.role !== "yono"
+    pathname.startsWith("/yono") &&
+    session.role !== "yono" &&
+    session.role !== "admin"
+  ) {
+    return NextResponse.redirect(new URL("/home", request.url));
+  }
+
+  if (
+    pathname.startsWith("/settings") &&
+    session.role !== "yono" &&
+    session.role !== "admin"
   ) {
     return NextResponse.redirect(new URL("/home", request.url));
   }

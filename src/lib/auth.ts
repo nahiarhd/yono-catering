@@ -50,9 +50,23 @@ export async function requireUser() {
   return user;
 }
 
+export function isAdmin(user: { role: Role }): boolean {
+  return user.role === "yono" || user.role === "admin";
+}
+
+export function canOrder(user: { role: Role }): boolean {
+  return user.role === "member" || user.role === "admin";
+}
+
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (!isAdmin(user)) redirect("/home");
+  return user;
+}
+
 export async function requireYono() {
   const user = await requireUser();
-  if (user.role !== "yono") redirect("/home");
+  if (user.role !== "yono" && user.role !== "admin") redirect("/home");
   return user;
 }
 

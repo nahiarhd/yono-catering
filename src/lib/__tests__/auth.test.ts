@@ -18,6 +18,24 @@ async function main() {
   const tampered = token.slice(0, -1) + (token.endsWith("a") ? "b" : "a");
   assert.strictEqual(verifySessionToken(tampered), null);
 
+  const adminToken = signSession({
+    userId: "admin-1",
+    role: "admin",
+    exp: Math.floor(Date.now() / 1000) + 3600,
+  });
+  const adminPayload = verifySessionToken(adminToken);
+  assert.ok(adminPayload);
+  assert.strictEqual(adminPayload?.role, "admin");
+
+  const { isAdmin, canOrder } = await import("../auth");
+  assert.strictEqual(isAdmin({ role: "yono" }), true);
+  assert.strictEqual(isAdmin({ role: "admin" }), true);
+  assert.strictEqual(isAdmin({ role: "member" }), false);
+
+  assert.strictEqual(canOrder({ role: "yono" }), false);
+  assert.strictEqual(canOrder({ role: "admin" }), true);
+  assert.strictEqual(canOrder({ role: "member" }), true);
+
   console.log("auth.test.ts ok");
 }
 
