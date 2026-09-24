@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Lint, Test, & Build
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "file:./dev.db"
+      SESSION_SECRET: "ci-secret-value-must-be-long-enough-32-chars-for-testing"
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: "BI5u_dummy_vapid_public_key_for_ci_build"
+      VAPID_PRIVATE_KEY: "dummy_vapid_private_key_for_ci_build"
+      VAPID_SUBJECT: "mailto:ci@example.com"
+      CRON_SECRET: "ci-cron-secret"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Push Prisma SQLite schema
+        run: pnpm db:push
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Build Next.js
+        run: pnpm build
