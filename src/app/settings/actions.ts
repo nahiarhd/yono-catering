@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireAdmin, hashPin } from "@/lib/auth";
+import { requireAdmin, requireStrictAdmin, hashPin } from "@/lib/auth";
 import { parseHHMM } from "@/lib/cutoff";
 import { normalizeDishKey, parseDefaultDishes } from "@/lib/dishes";
 import { getSettings } from "@/lib/settings";
@@ -38,7 +38,7 @@ export async function addMemberAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireAdmin();
+  await requireStrictAdmin();
 
   const name = String(formData.get("name") ?? "").trim();
   const pin = String(formData.get("pin") ?? "").trim();
@@ -63,7 +63,7 @@ export async function removeMemberAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const currentAdmin = await requireAdmin();
+  const currentAdmin = await requireStrictAdmin();
   const memberId = String(formData.get("memberId") ?? "");
   if (memberId === currentAdmin.id) {
     return { error: id.errors.cannotRemoveSelf };
@@ -82,7 +82,7 @@ export async function resetPinAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireAdmin();
+  await requireStrictAdmin();
 
   const memberId = String(formData.get("memberId") ?? "");
   const pin = String(formData.get("pin") ?? "").trim();
@@ -108,18 +108,19 @@ export async function addDefaultDishAction(
   await requireAdmin();
 
   const dish = String(formData.get("dish") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim() || null;
   if (!dish) return { error: id.errors.dishRequired };
 
   const settings = await getSettings();
   const dishes = parseDefaultDishes(settings.defaultDishes);
   const key = normalizeDishKey(dish);
-  if (dishes.some((d) => normalizeDishKey(d) === key)) {
+  if (dishes.some((d) => normalizeDishKey(d.name) === key)) {
     return { error: id.errors.dishExists };
   }
 
   await db.settings.update({
     where: { id: "singleton" },
-    data: { defaultDishes: [...dishes, dish] },
+    data: { defaultDishes: [...dishes, { name: dish, note }] },
   });
 
   revalidatePath("/settings");
@@ -141,7 +142,7 @@ export async function removeDefaultDishAction(
   const settings = await getSettings();
   const dishes = parseDefaultDishes(settings.defaultDishes);
   const key = normalizeDishKey(dish);
-  const next = dishes.filter((d) => normalizeDishKey(d) !== key);
+  const next = dishes.filter((d) => normalizeDishKey(d.name) !== key);
 
   await db.settings.update({
     where: { id: "singleton" },

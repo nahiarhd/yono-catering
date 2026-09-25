@@ -88,7 +88,13 @@ body {
   background: white;
 }
 
-/* Inputs always own their colors — never inherit from accent cards */
+.neo-btn-active {
+  background: var(--primary);
+  font-weight: 800;
+  box-shadow: 2px 2px 0 var(--neo-black);
+}
+
+/* Inputs always own their colors, never inherit from accent cards */
 .neo-input,
 .neo-select {
   width: 100%;
@@ -326,14 +332,20 @@ body {
   transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
-.neo-calendar-nav:hover {
+.neo-calendar-nav:hover:not(:disabled) {
   transform: translate(-2px, -2px);
   box-shadow: 6px 6px 0 var(--neo-black);
 }
 
-.neo-calendar-nav:active {
+.neo-calendar-nav:active:not(:disabled) {
   transform: translate(2px, 2px);
   box-shadow: 2px 2px 0 var(--neo-black);
+}
+
+.neo-calendar-nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .neo-calendar-nav:focus-visible {
@@ -386,10 +398,26 @@ body {
   line-height: 1;
 }
 
-.neo-calendar-day:hover {
+.neo-calendar-day:hover:not(:disabled) {
   border-color: var(--neo-black);
   box-shadow: 2px 2px 0 var(--neo-black);
   transform: translate(-1px, -1px);
+}
+
+.neo-calendar-day--disabled,
+.neo-calendar-day:disabled {
+  background: #f1f2f4;
+  color: #9ca3af;
+  border: 2px dashed #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.65;
+  box-shadow: none;
+  transform: none;
+}
+
+.neo-calendar-day--disabled .neo-calendar-day-num,
+.neo-calendar-day:disabled .neo-calendar-day-num {
+  font-weight: 600;
 }
 
 .neo-calendar-day:focus-visible {

@@ -54,6 +54,10 @@ export function isAdmin(user: { role: Role }): boolean {
   return user.role === "yono" || user.role === "admin";
 }
 
+export function isStrictAdmin(user: { role: Role }): boolean {
+  return user.role === "admin";
+}
+
 export function canOrder(user: { role: Role }): boolean {
   return user.role === "member" || user.role === "admin";
 }
@@ -61,6 +65,12 @@ export function canOrder(user: { role: Role }): boolean {
 export async function requireAdmin() {
   const user = await requireUser();
   if (!isAdmin(user)) redirect("/home");
+  return user;
+}
+
+export async function requireStrictAdmin() {
+  const user = await requireUser();
+  if (!isStrictAdmin(user)) redirect("/home");
   return user;
 }
 

@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { id } from "@/lib/id";
+import type { DefaultDish } from "@/lib/dishes";
 import { TimePicker } from "@/components/time-picker";
 import { Button, Input, Label, Card } from "./ui";
 
@@ -16,11 +17,23 @@ export function MenuForm({
   action: (prev: State, formData: FormData) => Promise<State>;
   dateKey: string;
   initial?: { dish: string; note: string | null; cutoffOverride: string | null };
-  defaultDishes?: string[];
+  defaultDishes?: (DefaultDish | string)[];
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const t = id.yono;
   const [dish, setDish] = useState(initial?.dish ?? "");
+  const [menuNote, setMenuNote] = useState(initial?.note ?? "");
+
+  const parsedDishes: DefaultDish[] = defaultDishes.map((d) =>
+    typeof d === "string" ? { name: d, note: null } : d
+  );
+
+  function handleSelectPreset(preset: DefaultDish) {
+    setDish(preset.name);
+    if (preset.note) {
+      setMenuNote(preset.note);
+    }
+  }
 
   return (
     <Card accent="yellow">
@@ -29,21 +42,27 @@ export function MenuForm({
 
         <div>
           <Label htmlFor="dish">{t.dishLabel}</Label>
-          {defaultDishes.length > 0 && (
+          {parsedDishes.length > 0 && (
             <div className="neo-dish-quick">
               <p className="neo-dish-quick-label">{t.dishQuick}</p>
               <div className="neo-dish-chips neo-dish-chips--menu">
-                {defaultDishes.map((preset) => {
-                  const selected = dish.trim().toLowerCase() === preset.trim().toLowerCase();
+                {parsedDishes.map((preset) => {
+                  const selected = dish.trim().toLowerCase() === preset.name.trim().toLowerCase();
                   return (
                     <button
-                      key={preset}
+                      key={preset.name}
                       type="button"
                       className={`neo-dish-chip neo-dish-chip--menu${selected ? " neo-dish-chip--selected" : ""}`}
-                      onClick={() => setDish(preset)}
+                      onClick={() => handleSelectPreset(preset)}
                       aria-pressed={selected}
+                      title={preset.note ? `Catatan: ${preset.note}` : undefined}
                     >
-                      {preset}
+                      <span className="font-extrabold">{preset.name}</span>
+                      {preset.note && (
+                        <span className="text-[10px] opacity-80 font-medium block max-w-[140px] truncate">
+                          {preset.note}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -66,7 +85,8 @@ export function MenuForm({
             id="menuNote"
             name="menuNote"
             placeholder={t.notePlaceholder}
-            defaultValue={initial?.note ?? ""}
+            value={menuNote}
+            onChange={(e) => setMenuNote(e.target.value)}
           />
         </div>
 

@@ -25,7 +25,7 @@ function dayFormatter(options: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat("id-ID", { timeZone: tz(), ...options });
 }
 
-/** Judul halaman — Senin, 23 Juni 2026 */
+/** Judul halaman: Senin, 23 Juni 2026 */
 export function formatDisplayDate(key: string): string {
   return dayFormatter({
     weekday: "long",
@@ -35,7 +35,7 @@ export function formatDisplayDate(key: string): string {
   }).format(parseDateKey(key));
 }
 
-/** Banner kalender — Senin, 23 Juni */
+/** Banner kalender: Senin, 23 Juni */
 export function formatDayHeading(key: string): string {
   return dayFormatter({
     weekday: "long",
@@ -44,7 +44,7 @@ export function formatDayHeading(key: string): string {
   }).format(parseDateKey(key));
 }
 
-/** Nama hari saja — Senin */
+/** Nama hari saja: Senin */
 export function formatWeekdayName(key: string): string {
   return dayFormatter({ weekday: "long" }).format(parseDateKey(key));
 }

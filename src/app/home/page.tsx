@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireUser, canOrder } from "@/lib/auth";
 import { todayKey, formatDisplayDate } from "@/lib/dates";
 import { effectiveCutoff } from "@/lib/cutoff";
@@ -22,7 +23,11 @@ export default async function MemberHomePage({
 }) {
   const user = await requireUser();
   const params = await searchParams;
-  const dateKey = params.date ?? todayKey();
+  const today = todayKey();
+  if (params.date && params.date < today) {
+    redirect("/home");
+  }
+  const dateKey = params.date ?? today;
   const { settings, menu, locked } = await getMenuDay(dateKey);
   const myResponse = menu?.responses.find((r) => r.userId === user.id);
   const dishPreference =

@@ -27,10 +27,14 @@ async function main() {
   assert.ok(adminPayload);
   assert.strictEqual(adminPayload?.role, "admin");
 
-  const { isAdmin, canOrder } = await import("../auth");
+  const { isAdmin, isStrictAdmin, canOrder } = await import("../auth");
   assert.strictEqual(isAdmin({ role: "yono" }), true);
   assert.strictEqual(isAdmin({ role: "admin" }), true);
   assert.strictEqual(isAdmin({ role: "member" }), false);
+
+  assert.strictEqual(isStrictAdmin({ role: "admin" }), true);
+  assert.strictEqual(isStrictAdmin({ role: "yono" }), false);
+  assert.strictEqual(isStrictAdmin({ role: "member" }), false);
 
   assert.strictEqual(canOrder({ role: "yono" }), false);
   assert.strictEqual(canOrder({ role: "admin" }), true);

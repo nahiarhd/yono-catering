@@ -6,7 +6,7 @@ import {
   removeDishPreferenceAction,
   type ActionState,
 } from "@/app/home/actions";
-import { normalizeDishKey } from "@/lib/dishes";
+import { normalizeDishKey, type DefaultDish } from "@/lib/dishes";
 import { id } from "@/lib/id";
 import { Button, Input, Card } from "./ui";
 
@@ -21,14 +21,15 @@ export function DishPreferencesCard({
   dishes,
   preferences,
 }: {
-  dishes: string[];
+  dishes: (DefaultDish | string)[];
   preferences: Pref[];
 }) {
   const t = id.preferences;
-  const [active, setActive] = useState(dishes[0] ?? "");
+  const dishNames = dishes.map((d) => (typeof d === "string" ? d : d.name));
+  const [active, setActive] = useState(dishNames[0] ?? "");
   const prefByKey = new Map(preferences.map((p) => [p.forDish, p]));
 
-  if (dishes.length === 0) return null;
+  if (dishNames.length === 0) return null;
 
   function summary(dish: string) {
     const pref = prefByKey.get(normalizeDishKey(dish));
@@ -43,7 +44,7 @@ export function DishPreferencesCard({
       <p className="neo-pref-hint">{t.hint}</p>
 
       <div className="neo-dish-chips">
-        {dishes.map((dish) => {
+        {dishNames.map((dish) => {
           const selected = dish === active;
           const hasPref = prefByKey.has(normalizeDishKey(dish));
           return (

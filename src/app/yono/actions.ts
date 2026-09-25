@@ -6,6 +6,7 @@ import { parseHHMM, effectiveCutoff } from "@/lib/cutoff";
 import { getMenuDay, upsertMenu } from "@/lib/menu-data";
 import { sendPush } from "@/lib/push";
 import { getSettings } from "@/lib/settings";
+import { todayKey } from "@/lib/dates";
 import { id } from "@/lib/id";
 
 export type ActionState = { error?: string; ok?: boolean };
@@ -22,7 +23,7 @@ export async function postMenuAction(
   const cutoffRaw = String(formData.get("cutoffOverride") ?? "").trim();
   const cutoffOverride = cutoffRaw ? cutoffRaw : null;
 
-  if (!dateKey) return { error: id.errors.missingDay };
+  if (!dateKey || dateKey < todayKey()) return { error: id.errors.missingDay };
   if (!dish) return { error: id.errors.dishRequired };
   if (cutoffOverride && !parseHHMM(cutoffOverride)) {
     return { error: id.errors.cutoffFormat };

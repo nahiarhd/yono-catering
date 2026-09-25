@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireYono } from "@/lib/auth";
 import { todayKey, formatDisplayDate } from "@/lib/dates";
 import { effectiveCutoff } from "@/lib/cutoff";
@@ -21,7 +22,11 @@ export default async function YonoHomePage({
 }) {
   const user = await requireYono();
   const params = await searchParams;
-  const dateKey = params.date ?? todayKey();
+  const today = todayKey();
+  if (params.date && params.date < today) {
+    redirect("/yono");
+  }
+  const dateKey = params.date ?? today;
   const [{ settings, menu, locked }, defaultDishes, eaters] = await Promise.all([
     getMenuDay(dateKey),
     getDefaultDishes(),

@@ -1,9 +1,29 @@
 import { db } from "./db";
 import { getSettings } from "./settings";
 import { isResponsesLocked, menuDateToKey } from "./cutoff";
-import { parseDateKey } from "./dates";
+import { parseDateKey, todayKey } from "./dates";
+
+export async function deletePastMenus(minDateKey: string = todayKey()) {
+  const minDate = parseDateKey(minDateKey);
+  const pastMenus = await db.menu.findMany({
+    where: { date: { lt: minDate } },
+    select: { id: true },
+  });
+
+  if (pastMenus.length > 0) {
+    const pastIds = pastMenus.map((m) => m.id);
+    await db.response.deleteMany({
+      where: { menuId: { in: pastIds } },
+    });
+    await db.menu.deleteMany({
+      where: { id: { in: pastIds } },
+    });
+  }
+}
 
 export async function getMenuDay(dateKey: string) {
+  await deletePastMenus();
+
   const settings = await getSettings();
   const menu = await db.menu.findUnique({
     where: { date: parseDateKey(dateKey) },
@@ -25,6 +45,7 @@ export async function getMenuDay(dateKey: string) {
 
   return { settings, menu, locked };
 }
+
 
 export async function upsertMenu(input: {
   dateKey: string;

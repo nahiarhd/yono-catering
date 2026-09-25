@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { parseDefaultDishes } from "./dishes";
+import { parseDefaultDishes, type DefaultDish } from "./dishes";
 
 export async function getSettings() {
   let settings = await db.settings.findUnique({ where: { id: "singleton" } });
@@ -16,7 +16,7 @@ export async function getSettings() {
   return settings;
 }
 
-export async function getDefaultDishes() {
+export async function getDefaultDishes(): Promise<DefaultDish[]> {
   const settings = await getSettings();
   return parseDefaultDishes(settings.defaultDishes);
 }

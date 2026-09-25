@@ -1,4 +1,6 @@
-export type CalendarCell = { type: "empty" } | { type: "day"; day: number; key: string };
+export type CalendarCell =
+  | { type: "empty" }
+  | { type: "day"; day: number; key: string; disabled?: boolean };
 
 export function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
@@ -21,16 +23,23 @@ export function parseKeyParts(key: string) {
   return { year: y, month: m - 1, day: d };
 }
 
-export function buildMonthGrid(year: number, month: number): CalendarCell[] {
+export function buildMonthGrid(
+  year: number,
+  month: number,
+  minDateKey?: string,
+): CalendarCell[] {
   const lead = firstWeekdayMonday(year, month);
   const total = daysInMonth(year, month);
   const cells: CalendarCell[] = [];
   for (let i = 0; i < lead; i++) cells.push({ type: "empty" });
   for (let day = 1; day <= total; day++) {
-    cells.push({ type: "day", day, key: toDateKey(year, month, day) });
+    const key = toDateKey(year, month, day);
+    const disabled = Boolean(minDateKey && key < minDateKey);
+    cells.push({ type: "day", day, key, disabled });
   }
   return cells;
 }
+
 
 export function formatMonthLabel(year: number, month: number): string {
   return new Intl.DateTimeFormat("id-ID", {

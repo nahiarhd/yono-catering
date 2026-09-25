@@ -1,50 +1,52 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { Role } from "@prisma/client";
 import { logoutAction } from "@/app/logout-action";
 import { id } from "@/lib/id";
 import { Button } from "./ui";
 
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+
+  return (
+    <Link
+      href={href}
+      className={`neo-btn text-sm ${isActive ? "neo-btn-primary neo-btn-active" : "neo-btn-ghost"}`}
+      aria-current={isActive ? "page" : undefined}
+    >
+      {children}
+    </Link>
+  );
+}
+
 export function AppNav({ role }: { role: Role }) {
   const t = id.nav;
 
   return (
-    <nav className="flex flex-wrap gap-2">
+    <nav className="flex flex-wrap gap-2" aria-label="Navigasi Utama">
       {role === "yono" && (
         <>
-          <Link href="/yono" className="neo-btn neo-btn-ghost text-sm">
-            {t.kitchen}
-          </Link>
-          <Link href="/settings" className="neo-btn neo-btn-ghost text-sm">
-            {t.settings}
-          </Link>
+          <NavLink href="/yono">{t.kitchen}</NavLink>
+          <NavLink href="/settings">{t.settings}</NavLink>
         </>
       )}
 
       {role === "admin" && (
         <>
-          <Link href="/home" className="neo-btn neo-btn-ghost text-sm">
-            {t.home}
-          </Link>
-          <Link href="/yono" className="neo-btn neo-btn-ghost text-sm">
-            {t.kitchen}
-          </Link>
-          <Link href="/preferences" className="neo-btn neo-btn-ghost text-sm">
-            {t.preferences}
-          </Link>
-          <Link href="/settings" className="neo-btn neo-btn-ghost text-sm">
-            {t.settings}
-          </Link>
+          <NavLink href="/home">{t.home}</NavLink>
+          <NavLink href="/yono">{t.kitchen}</NavLink>
+          <NavLink href="/preferences">{t.preferences}</NavLink>
+          <NavLink href="/settings">{t.settings}</NavLink>
         </>
       )}
 
       {role === "member" && (
         <>
-          <Link href="/home" className="neo-btn neo-btn-ghost text-sm">
-            {t.home}
-          </Link>
-          <Link href="/preferences" className="neo-btn neo-btn-ghost text-sm">
-            {t.preferences}
-          </Link>
+          <NavLink href="/home">{t.home}</NavLink>
+          <NavLink href="/preferences">{t.preferences}</NavLink>
         </>
       )}
       <form action={logoutAction}>

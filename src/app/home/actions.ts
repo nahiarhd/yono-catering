@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { getMenuDay } from "@/lib/menu-data";
 import { normalizeDishKey } from "@/lib/dishes";
 import { upsertDishPreference } from "@/lib/preferences";
+import { todayKey } from "@/lib/dates";
 import { id } from "@/lib/id";
 
 export type ActionState = { error?: string; ok?: boolean };
@@ -27,7 +28,7 @@ export async function submitResponseAction(
   const { wants, swapDish, note } = parsePreferenceFields(formData);
   const saveAsPreference = String(formData.get("saveAsPreference") ?? "") === "yes";
 
-  if (!dateKey) return { error: id.errors.missingDay };
+  if (!dateKey || dateKey < todayKey()) return { error: id.errors.missingDay };
   if (!wants && !swapDish) return { error: id.errors.swapRequired };
 
   const { menu, locked } = await getMenuDay(dateKey);

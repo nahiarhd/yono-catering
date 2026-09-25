@@ -17,21 +17,39 @@ export function DatePicker({
 }) {
   const router = useRouter();
   const t = id.calendar;
-  const initial = parseKeyParts(value);
+  const effectiveValue = value < todayKey ? todayKey : value;
+  const initial = parseKeyParts(effectiveValue);
+  const todayParts = parseKeyParts(todayKey);
+
   const [viewYear, setViewYear] = useState(initial.year);
   const [viewMonth, setViewMonth] = useState(initial.month);
-  const cells = buildMonthGrid(viewYear, viewMonth);
-  const onToday = value === todayKey;
+  const cells = buildMonthGrid(viewYear, viewMonth, todayKey);
+  const onToday = effectiveValue === todayKey;
+
+  const isPrevMonthDisabled =
+    viewYear < todayParts.year ||
+    (viewYear === todayParts.year && viewMonth <= todayParts.month);
 
   function goTo(key: string) {
+    if (key < todayKey) return;
     if (basePath === "/day") router.push(`/day/${key}`);
     else router.push(`${basePath}?date=${key}`);
   }
 
   function shiftMonth(delta: number) {
+    if (delta < 0 && isPrevMonthDisabled) return;
     const d = new Date(Date.UTC(viewYear, viewMonth + delta, 1));
-    setViewYear(d.getUTCFullYear());
-    setViewMonth(d.getUTCMonth());
+    const nextYear = d.getUTCFullYear();
+    const nextMonth = d.getUTCMonth();
+    if (
+      delta < 0 &&
+      (nextYear < todayParts.year ||
+        (nextYear === todayParts.year && nextMonth < todayParts.month))
+    ) {
+      return;
+    }
+    setViewYear(nextYear);
+    setViewMonth(nextMonth);
   }
 
   return (
@@ -41,6 +59,8 @@ export function DatePicker({
           type="button"
           className="neo-calendar-nav"
           onClick={() => shiftMonth(-1)}
+          disabled={isPrevMonthDisabled}
+          aria-disabled={isPrevMonthDisabled}
           aria-label={t.prevMonth}
         >
           ‹
@@ -58,7 +78,7 @@ export function DatePicker({
 
       <div className="neo-calendar-picked" aria-live="polite">
         <p className="neo-calendar-picked-label">{t.pickedDay}</p>
-        <p className="neo-calendar-picked-value">{formatDayHeading(value)}</p>
+        <p className="neo-calendar-picked-value">{formatDayHeading(effectiveValue)}</p>
       </div>
 
       <div className="neo-calendar-weekdays" aria-hidden>
@@ -77,20 +97,24 @@ export function DatePicker({
             <button
               key={cell.key}
               type="button"
+              disabled={cell.disabled}
               className={[
                 "neo-calendar-day",
-                cell.key === value ? "neo-calendar-day--selected" : "",
+                cell.disabled ? "neo-calendar-day--disabled" : "",
+                !cell.disabled && cell.key === value ? "neo-calendar-day--selected" : "",
                 cell.key === todayKey ? "neo-calendar-day--today" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
-              onClick={() => goTo(cell.key)}
-              aria-pressed={cell.key === value}
+              onClick={() => !cell.disabled && goTo(cell.key)}
+              aria-pressed={!cell.disabled && cell.key === value}
               aria-current={cell.key === todayKey ? "date" : undefined}
-              aria-label={`${formatWeekdayName(cell.key)}, ${cell.day} ${formatMonthLabel(viewYear, viewMonth)}`}
+              aria-disabled={cell.disabled}
+              aria-label={`${formatWeekdayName(cell.key)}, ${cell.day} ${formatMonthLabel(viewYear, viewMonth)}${cell.disabled ? " (Sudah lewat)" : ""}`}
             >
               <span className="neo-calendar-day-num">{cell.day}</span>
             </button>
+
           ),
         )}
       </div>
