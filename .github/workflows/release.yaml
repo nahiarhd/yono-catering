@@ -287,27 +287,32 @@ jobs:
 
       - name: Determine Release Tag
         id: release_info
-        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (github.event.inputs.create_release == true || github.event.inputs.create_release == 'true'))
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ github.event.inputs.release_tag }}"
             if [ -z "$TAG" ]; then
-              TAG="v$(date +'%Y.%m.%d-%H%M')"
+              TAG="latest"
             fi
-          else
+            TITLE="Release $TAG"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
+            TITLE="Release $TAG"
+          else
+            TAG="latest"
+            TITLE="Release latest"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release
-        if: steps.release_info.outputs.tag != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_info.outputs.tag }}
-          name: "Release ${{ steps.release_info.outputs.tag }}"
+          name: ${{ steps.release_info.outputs.title }}
           files: yono-catering-standalone.tar.gz
           generate_release_notes: true
           draft: false
           prerelease: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
