@@ -131,6 +131,22 @@ jobs:
           EOF
           chmod +x .next/standalone/db-push.sh
 
+          # Create seed.sh helper
+          cat << 'EOF' > .next/standalone/seed.sh
+          #!/bin/sh
+          set -e
+
+          if [ -f ".env" ]; then
+            set -a
+            . ./.env
+            set +a
+          fi
+
+          echo "Seeding initial database data..."
+          node prisma/seed.js
+          EOF
+          chmod +x .next/standalone/seed.sh
+
           # Create ecosystem.config.cjs for PM2
           cat << 'EOF' > .next/standalone/ecosystem.config.cjs
           module.exports = {
@@ -210,10 +226,14 @@ jobs:
           - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
           - `CRON_SECRET`
 
-          ## Langkah 3: Inisialisasi Database (SQLite)
+          ## Langkah 3: Inisialisasi Database (SQLite) & Seed
           Saat pertama kali deploy atau jika ada perubahan schema tabel:
           ```bash
           ./db-push.sh
+          ```
+          Untuk mengisi data awal (pengguna: Pak Yono, Raihan, PIN default: 1234):
+          ```bash
+          ./seed.sh
           ```
 
           ## Langkah 4: Menjalankan Aplikasi

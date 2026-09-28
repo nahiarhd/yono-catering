@@ -1,23 +1,24 @@
-import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
+const { PrismaClient } = require("@prisma/client");
+
+const db = new PrismaClient();
+
 function tz() {
   return process.env.HOUSEHOLD_TZ ?? "Asia/Jakarta";
 }
 
-function todayKey(now = new Date()): string {
+function todayKey(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz() }).format(now);
 }
 
-function parseDateKey(key: string): Date {
+function parseDateKey(key) {
   const [y, m, d] = key.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d));
 }
 
-const db = new PrismaClient();
+// Pre-hashed bcrypt hash for PIN "1234"
+const PIN_1234_HASH = "$2b$10$8wQwJE8c0/aa84b92v9zwuL.ZWrKKw2F9Jy9SEFq5VrPGi8HfVMHu";
 
 async function main() {
-  const pinHash = await bcrypt.hash("1234", 10);
-
   await db.settings.upsert({
     where: { id: "singleton" },
     create: {
@@ -46,18 +47,18 @@ async function main() {
   });
 
   const users = [
-    { name: "Pak Yono", role: "yono" as const },
-    { name: "Raihan", role: "admin" as const },
-    { name: "Iqbal", role: "member" as const },
-    { name: "Budi", role: "member" as const },
-    { name: "Siti", role: "member" as const },
+    { name: "Pak Yono", role: "yono" },
+    { name: "Raihan", role: "admin" },
+    { name: "Iqbal", role: "member" },
+    { name: "Budi", role: "member" },
+    { name: "Siti", role: "member" },
   ];
 
-  const userMap = new Map<string, string>();
+  const userMap = new Map();
   for (const u of users) {
     const record = await db.user.upsert({
       where: { name: u.name },
-      create: { name: u.name, pinHash, role: u.role },
+      create: { name: u.name, pinHash: PIN_1234_HASH, role: u.role },
       update: { role: u.role },
     });
     userMap.set(u.name, record.id);
@@ -132,12 +133,12 @@ async function main() {
     });
   }
 
-  console.log("Seed selesai: 5 pengguna, menu hari ini, dan respon pesanan tersimpan.");
+  console.log("✅ Seed selesai: 5 pengguna (PIN: 1234), menu hari ini, dan respon pesanan tersimpan.");
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error("❌ Seed gagal:", e);
     process.exit(1);
   })
   .finally(() => db.$disconnect());

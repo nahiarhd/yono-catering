@@ -54,6 +54,7 @@ Aplikasi ini mendukung **Next.js Standalone Build** sehingga dapat dijalankan di
 
    # 3. Setup database SQLite pertama kali
    ./db-push.sh
+   ./seed.sh # opsional: seed data awal (Pak Yono, Raihan, PIN: 1234)
 
    # 4. Jalankan dengan PM2 (hemat RAM, auto-restart)
    npm install -g pm2
