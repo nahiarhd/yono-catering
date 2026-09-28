@@ -1,0 +1,313 @@
+name: Build & Release Standalone
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Publish as GitHub Release?'
+        required: true
+        type: boolean
+        default: true
+      release_tag:
+        description: 'Release tag name (e.g. v1.0.0, optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-package:
+    name: Build & Package Standalone
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "file:./build-temp.db"
+      SESSION_SECRET: ${{ secrets.SESSION_SECRET || 'ci-secret-value-must-be-long-enough-32-chars-for-testing' }}
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BI5u_dummy_vapid_public_key_for_ci_build' }}
+      VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY || 'BI5u_dummy_vapid_public_key_for_ci_build' }}
+      VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY || 'dummy_vapid_private_key_for_ci_build' }}
+      VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT || 'mailto:ci@example.com' }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET || 'ci-cron-secret' }}
+      HOUSEHOLD_TZ: "Asia/Jakarta"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Push temporary Prisma schema for build
+        run: pnpm db:push
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Build Next.js
+        run: pnpm build
+
+      - name: Assemble standalone bundle
+        run: |
+          echo "Copying static assets and runtime requirements..."
+          cp -r .next/static .next/standalone/.next/static
+          
+          if [ -d "public" ]; then
+            cp -r public .next/standalone/public
+          fi
+
+          if [ -d "prisma" ]; then
+            mkdir -p .next/standalone/prisma
+            cp -r prisma/* .next/standalone/prisma/
+          fi
+
+          if [ -d "node_modules/.prisma" ]; then
+            mkdir -p .next/standalone/node_modules
+            cp -r node_modules/.prisma .next/standalone/node_modules/ 2>/dev/null || true
+          fi
+
+          # Remove build-time database files so they are not included in the release
+          find .next/standalone -name "*.db" -delete 2>/dev/null || true
+          find .next/standalone -name "*.db-journal" -delete 2>/dev/null || true
+
+          # Create start.sh helper
+          cat << 'EOF' > .next/standalone/start.sh
+          #!/bin/sh
+          set -e
+
+          if [ -f ".env" ]; then
+            echo "Loading environment from .env..."
+            set -a
+            . ./.env
+            set +a
+          fi
+
+          export PORT=${PORT:-3000}
+          export HOSTNAME=${HOSTNAME:-"0.0.0.0"}
+
+          echo "----------------------------------------"
+          echo "Starting Yono Catering Standalone Server"
+          echo "Listening on http://${HOSTNAME}:${PORT}"
+          echo "----------------------------------------"
+
+          exec node server.js
+          EOF
+          chmod +x .next/standalone/start.sh
+
+          # Create db-push.sh helper
+          cat << 'EOF' > .next/standalone/db-push.sh
+          #!/bin/sh
+          set -e
+
+          if [ -f ".env" ]; then
+            set -a
+            . ./.env
+            set +a
+          fi
+
+          echo "Applying Prisma schema to database..."
+          npx --yes prisma@6.19.3 db push --schema=./prisma/schema.prisma
+          EOF
+          chmod +x .next/standalone/db-push.sh
+
+          # Create ecosystem.config.cjs for PM2
+          cat << 'EOF' > .next/standalone/ecosystem.config.cjs
+          module.exports = {
+            apps: [
+              {
+                name: "yono-catering",
+                script: "server.js",
+                instances: 1,
+                autorestart: true,
+                watch: false,
+                max_memory_restart: "300M",
+                env_file: ".env",
+                env: {
+                  NODE_ENV: "production",
+                  PORT: 3000,
+                  HOSTNAME: "0.0.0.0",
+                },
+              },
+            ],
+          };
+          EOF
+
+          # Create .env.example
+          cat << 'EOF' > .next/standalone/.env.example
+          # Database SQLite
+          DATABASE_URL="file:./data.db"
+
+          # Session & Security (minimal 32 karakter acak)
+          SESSION_SECRET="ganti-dengan-secret-acak-minimal-32-karakter"
+
+          # Web Push Notifications
+          VAPID_PUBLIC_KEY="ganti-dengan-vapid-public-key"
+          VAPID_PRIVATE_KEY="ganti-dengan-vapid-private-key"
+          VAPID_SUBJECT="mailto:admin@example.com"
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY="ganti-dengan-vapid-public-key"
+
+          # Cron secret endpoint /api/cron/reminder
+          CRON_SECRET="ganti-dengan-cron-secret-anda"
+
+          # Timezone
+          HOUSEHOLD_TZ="Asia/Jakarta"
+
+          # Server host & port
+          PORT=3000
+          HOSTNAME=0.0.0.0
+          EOF
+
+          # Create README-DEPLOY.md
+          cat << 'EOF' > .next/standalone/README-DEPLOY.md
+          # Panduan Menjalankan Yono Catering di Server
+
+          Arsip ini berisi build **Next.js Standalone** yang sangat ringan (hanya butuh RAM ~50-80 MB).
+          Anda **TIDAK PERLU** menginstall dependencies (`pnpm install`) atau build (`pnpm build`) di server.
+
+          ## Kebutuhan Server
+          - **Node.js 20+** terinstall di server (`node -v`)
+
+          ---
+
+          ## Langkah 1: Ekstrak File
+          Letakkan file `yono-catering-standalone.tar.gz` di direktori yang diinginkan (misal `/var/www/yono-catering`):
+          ```bash
+          mkdir -p /var/www/yono-catering
+          cd /var/www/yono-catering
+          tar -xzf yono-catering-standalone.tar.gz
+          ```
+
+          ## Langkah 2: Konfigurasi .env
+          Salin `.env.example` ke `.env`:
+          ```bash
+          cp .env.example .env
+          nano .env
+          ```
+          Sesuaikan nilai:
+          - `DATABASE_URL="file:./data.db"`
+          - `SESSION_SECRET="string-rahasia-minimal-32-karakter"`
+          - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+          - `CRON_SECRET`
+
+          ## Langkah 3: Inisialisasi Database (SQLite)
+          Saat pertama kali deploy atau jika ada perubahan schema tabel:
+          ```bash
+          ./db-push.sh
+          ```
+
+          ## Langkah 4: Menjalankan Aplikasi
+
+          ### Opsi 1: Menggunakan PM2 (Direkomendasikan)
+          PM2 akan menjaga aplikasi tetap hidup, otomatis restart jika server reboot / crash, dan hemat RAM.
+          ```bash
+          # Install PM2 jika belum ada
+          npm install -g pm2
+
+          # Jalankan
+          pm2 start ecosystem.config.cjs
+
+          # Simpan agar otomatis hidup saat server reboot
+          pm2 save
+          pm2 startup
+          ```
+
+          ### Opsi 2: Menggunakan Systemd Service
+          Buat file `/etc/systemd/system/yono-catering.service`:
+          ```ini
+          [Unit]
+          Description=Yono Catering Standalone
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=ubuntu
+          WorkingDirectory=/var/www/yono-catering
+          EnvironmentFile=/var/www/yono-catering/.env
+          ExecStart=/usr/bin/node /var/www/yono-catering/server.js
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+          ```
+          Aktifkan:
+          ```bash
+          sudo systemctl daemon-reload
+          sudo systemctl enable --now yono-catering
+          ```
+
+          ### Opsi 3: Menjalankan Langsung via Script
+          ```bash
+          ./start.sh
+          ```
+
+          ---
+
+          ## Cara Update Versi Baru di Kemudian Hari
+          Karena database `data.db` dan file `.env` tidak ada di dalam tarball, Anda aman mengekstrak tarball versi baru di atas folder yang sama:
+          ```bash
+          cd /var/www/yono-catering
+          tar -xzf yono-catering-standalone.tar.gz
+          ./db-push.sh   # jika ada perubahan skema database
+          pm2 restart yono-catering
+          ```
+          EOF
+
+          # Package everything into tarball
+          tar -czf yono-catering-standalone.tar.gz -C .next/standalone .
+          echo "Tarball created successfully: yono-catering-standalone.tar.gz"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yono-catering-standalone
+          path: yono-catering-standalone.tar.gz
+          retention-days: 30
+
+      - name: Determine Release Tag
+        id: release_info
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (github.event.inputs.create_release == true || github.event.inputs.create_release == 'true'))
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+            if [ -z "$TAG" ]; then
+              TAG="v$(date +'%Y.%m.%d-%H%M')"
+            fi
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        if: steps.release_info.outputs.tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: "Release ${{ steps.release_info.outputs.tag }}"
+          files: yono-catering-standalone.tar.gz
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

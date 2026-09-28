@@ -34,3 +34,30 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Self-Hosted Deployment (Low-Resource VPS / Standalone)
+
+Aplikasi ini mendukung **Next.js Standalone Build** sehingga dapat dijalankan di VPS murah dengan RAM kecil (512MB - 1GB) tanpa perlu menjalankan `pnpm install` atau `pnpm build` di server.
+
+1. **Build Otomatis via GitHub Actions**:
+   - Setiap push ke `main`, GitHub Actions akan membuat arsip `.tar.gz` di tab **Actions -> Summary (Artifacts)**.
+   - Setiap push git tag (`git tag v1.0.0 && git push --tags`), rilis otomatis dibuat di **GitHub Releases** dengan file `yono-catering-standalone.tar.gz`.
+   - Atau bisa dijalankan manual lewat tab **Actions -> Build & Release Standalone -> Run workflow**.
+
+2. **Jalankan di Server**:
+   ```bash
+   # 1. Ekstrak
+   tar -xzf yono-catering-standalone.tar.gz
+
+   # 2. Setup env
+   cp .env.example .env && nano .env
+
+   # 3. Setup database SQLite pertama kali
+   ./db-push.sh
+
+   # 4. Jalankan dengan PM2 (hemat RAM, auto-restart)
+   npm install -g pm2
+   pm2 start ecosystem.config.cjs
+   pm2 save && pm2 startup
+   ```
+
