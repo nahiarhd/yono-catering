@@ -26,9 +26,6 @@ export function buildWhatsAppMessage(payload: WhatsAppPayload): string {
   if (payload.note?.trim()) {
     lines.push(`Catatan Menu: ${payload.note.trim()}`);
   }
-  if (payload.cutoff?.trim()) {
-    lines.push(`Batas Waktu: ${payload.cutoff.trim()}`);
-  }
   lines.push("");
 
   lines.push("*RINGKASAN PORSI:*");

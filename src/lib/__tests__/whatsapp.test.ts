@@ -27,6 +27,7 @@ function testAllAnswered() {
   assert.ok(msg.includes("*TIDAK IKUT MAKAN (1 orang):*"));
   assert.ok(msg.includes("• Iqbal [Catatan: Bawa bekal]"));
   assert.ok(!msg.includes("BELUM MEMILIH"));
+  assert.ok(!msg.includes("Batas Waktu"));
   assert.ok(!msg.includes("—"), "Must not contain em dash");
 
   const url = buildWhatsAppUrl(msg);
