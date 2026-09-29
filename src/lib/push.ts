@@ -4,12 +4,17 @@ import type { PushSubscription } from "web-push";
 import { db } from "./db";
 
 function configure() {
-  const publicKey = process.env.VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT ?? "mailto:admin@example.com";
-  if (!publicKey || !privateKey) return false;
-  webpush.setVapidDetails(subject, publicKey, privateKey);
-  return true;
+  try {
+    const publicKey = process.env.VAPID_PUBLIC_KEY;
+    const privateKey = process.env.VAPID_PRIVATE_KEY;
+    const subject = process.env.VAPID_SUBJECT ?? "mailto:admin@example.com";
+    if (!publicKey || !privateKey) return false;
+    webpush.setVapidDetails(subject, publicKey, privateKey);
+    return true;
+  } catch (err) {
+    console.warn("VAPID webpush configuration skipped/invalid:", err);
+    return false;
+  }
 }
 
 export function getVapidPublicKey() {

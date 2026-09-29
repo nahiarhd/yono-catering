@@ -28,7 +28,7 @@ export function TelegramPingButton({ dateKey, pendingCount }: TelegramPingButton
         if (res.ok) {
           setFeedback({
             type: "success",
-            message: t.pingTelegramSuccess(res.count ?? 0),
+            message: res.error || t.pingTelegramSuccess(res.count ?? 0),
           });
         } else {
           setFeedback({

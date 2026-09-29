@@ -90,11 +90,22 @@ export async function sendTelegramMessage(
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     console.warn("TELEGRAM_BOT_TOKEN tidak terkonfigurasi di environment.");
-    return { ok: false, error: "TELEGRAM_BOT_TOKEN belum diatur" };
+    return {
+      ok: false,
+      error: "TELEGRAM_BOT_TOKEN belum terbaca (pastikan sudah restart PM2 dengan --update-env)",
+    };
   }
 
-  if (!chatId || !chatId.trim()) {
-    return { ok: false, error: "Chat ID tidak valid" };
+  const cleanChatId = chatId ? chatId.trim() : "";
+  if (!cleanChatId) {
+    return { ok: false, error: "Chat ID tidak valid (kosong)" };
+  }
+
+  if (!/^-?\d+$/.test(cleanChatId)) {
+    return {
+      ok: false,
+      error: `Chat ID "${cleanChatId}" bukan angka. Telegram tidak bisa kirim ke @username. Buka @${getBotUsername()} dan ketik /start untuk melihat Chat ID angka.`,
+    };
   }
 
   try {
@@ -102,7 +113,7 @@ export async function sendTelegramMessage(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_id: chatId.trim(),
+        chat_id: cleanChatId,
         text,
         parse_mode: options?.parseMode ?? "HTML",
         disable_web_page_preview: true,
@@ -111,7 +122,15 @@ export async function sendTelegramMessage(
 
     const data = await res.json();
     if (!data.ok) {
-      return { ok: false, error: data.description || "Gagal mengirim pesan Telegram" };
+      let desc: string = data.description || "Gagal mengirim pesan Telegram";
+      if (desc.includes("bot can't initiate conversation")) {
+        desc = `User belum pernah klik /start di bot @${getBotUsername()}`;
+      } else if (desc.includes("chat not found")) {
+        desc = `Chat ID "${cleanChatId}" tidak ditemukan di Telegram`;
+      } else if (desc.includes("bot was blocked by the user")) {
+        desc = "Bot diblokir oleh user";
+      }
+      return { ok: false, error: desc };
     }
 
     return { ok: true, messageId: data.result?.message_id };

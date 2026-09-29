@@ -130,10 +130,36 @@ export async function pingTelegramRemindersAction(
   );
 
   let sent = 0;
-  for (const r of results) {
+  const failureReasons: string[] = [];
+
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const m = validMembers[i];
     if (r.status === "fulfilled" && r.value.ok) {
       sent++;
+    } else {
+      const err =
+        r.status === "fulfilled"
+          ? r.value.error || "Gagal"
+          : String((r as PromiseRejectedResult).reason);
+      failureReasons.push(`${m.name}: ${err}`);
     }
+  }
+
+  if (sent === 0) {
+    const firstReason = failureReasons[0] || "Pesan gagal terkirim";
+    return {
+      ok: false,
+      error: `Pengingat gagal dikirim (${firstReason})`,
+    };
+  }
+
+  if (failureReasons.length > 0) {
+    return {
+      ok: true,
+      count: sent,
+      error: `Terkirim ke ${sent} orang. Gagal ke ${failureReasons.length} orang (${failureReasons[0]}).`,
+    };
   }
 
   return { ok: true, count: sent };

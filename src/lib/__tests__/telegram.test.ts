@@ -65,9 +65,38 @@ function testFormatReminderMessage() {
   assert.ok(!msg.includes("—"), "Must not contain em dash");
 }
 
-testEscapeHtml();
-testGetAppUrl();
-testGetBotUsername();
-testFormatMenuBroadcast();
-testFormatReminderMessage();
-console.log("telegram.test.ts ok");
+async function testSendTelegramMessageValidation() {
+  const { sendTelegramMessage } = await import("../telegram");
+  const prevToken = process.env.TELEGRAM_BOT_TOKEN;
+  process.env.TELEGRAM_BOT_TOKEN = "123456:mock_token";
+
+  // Non-numeric chat ID
+  const res1 = await sendTelegramMessage("@haq", "test");
+  assert.strictEqual(res1.ok, false);
+  assert.ok(res1.error?.includes("bukan angka"));
+
+  // Empty chat ID
+  const res2 = await sendTelegramMessage("", "test");
+  assert.strictEqual(res2.ok, false);
+
+  if (prevToken) {
+    process.env.TELEGRAM_BOT_TOKEN = prevToken;
+  } else {
+    delete process.env.TELEGRAM_BOT_TOKEN;
+  }
+}
+
+async function main() {
+  testEscapeHtml();
+  testGetAppUrl();
+  testGetBotUsername();
+  testFormatMenuBroadcast();
+  testFormatReminderMessage();
+  await testSendTelegramMessageValidation();
+  console.log("telegram.test.ts ok");
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

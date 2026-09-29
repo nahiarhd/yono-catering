@@ -309,7 +309,7 @@ function UserTableRow({
           <input type="hidden" name="memberId" value={user.id} />
           <Input
             name="telegramChatId"
-            placeholder="Chat ID"
+            placeholder="Angka ID"
             value={telegramChatId}
             onChange={(e) => setTelegramChatId(e.target.value)}
             className="text-xs py-1 px-2 h-9 max-w-[120px]"

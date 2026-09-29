@@ -23,6 +23,13 @@ export async function addMemberAction(
   if (!name || !pin) return { error: id.errors.namePinRequired };
   if (pin.length < 4) return { error: id.errors.pinMinLength };
 
+  if (telegramChatId && !/^-?\d+$/.test(telegramChatId)) {
+    return {
+      error:
+        "Telegram ID harus berupa angka Chat ID (contoh: 123456789), bukan username @. Buka bot @yonocateringbot dan ketik /start untuk melihat Chat ID.",
+    };
+  }
+
   const exists = await db.user.findUnique({ where: { name } });
   if (exists) return { error: id.errors.nameTaken };
 
@@ -44,6 +51,13 @@ export async function updateTelegramIdAction(
   const memberId = String(formData.get("memberId") ?? "");
   const telegramChatIdRaw = String(formData.get("telegramChatId") ?? "").trim();
   const telegramChatId = telegramChatIdRaw ? telegramChatIdRaw : null;
+
+  if (telegramChatId && !/^-?\d+$/.test(telegramChatId)) {
+    return {
+      error:
+        "Telegram ID harus berupa angka Chat ID (contoh: 123456789), bukan username @. Buka bot @yonocateringbot dan ketik /start untuk melihat Chat ID.",
+    };
+  }
 
   if (!memberId) return { error: id.errors.memberNotFound };
 
