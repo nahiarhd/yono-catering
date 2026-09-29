@@ -3,6 +3,7 @@ import { requireUser, canOrder } from "@/lib/auth";
 import { todayKey, formatDisplayDate } from "@/lib/dates";
 import { effectiveCutoff } from "@/lib/cutoff";
 import { getMenuDay } from "@/lib/menu-data";
+import { parseSubDishes } from "@/lib/dishes";
 import {
   getPreferenceForDish,
   preferenceToInitial,
@@ -36,6 +37,7 @@ export default async function MemberHomePage({
       : null;
   const responseInitial = myResponse ?? preferenceToInitial(dishPreference);
   const prefilledFromPreference = !myResponse && !!dishPreference;
+  const subDishes = menu ? parseSubDishes(menu.subDishes) : [];
   const t = id.home;
 
   return (
@@ -49,6 +51,21 @@ export default async function MemberHomePage({
           <Card accent="yellow">
             <p className="text-sm font-bold uppercase">{t.todaysDish}</p>
             <p className="mt-2 text-2xl font-extrabold">{menu.dish}</p>
+            {subDishes.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-bold text-[var(--text-muted)] mr-1">
+                  Varian:
+                </span>
+                {subDishes.map((sub) => (
+                  <span
+                    key={sub}
+                    className="text-xs font-bold bg-amber-100 border border-black px-2 py-0.5"
+                  >
+                    {sub}
+                  </span>
+                ))}
+              </div>
+            )}
             {menu.note && (
               <p className="mt-2 font-semibold">
                 {t.note}: {menu.note}
@@ -62,7 +79,9 @@ export default async function MemberHomePage({
               <div className="neo-response-status mt-3">
                 <p className="neo-response-status-label">{t.yourStatus}</p>
                 <p className="neo-response-status-value">
-                  {myResponse.wants ? `${id.response.eating}: ${menu.dish}` : id.response.notEating}
+                  {myResponse.wants
+                    ? `${id.response.eating}: ${menu.dish}${myResponse.swapDish ? ` (${myResponse.swapDish})` : ""}`
+                    : id.response.notEating}
                   {myResponse.note ? ` · ${myResponse.note}` : ""}
                 </p>
               </div>
@@ -75,6 +94,7 @@ export default async function MemberHomePage({
               locked={locked}
               dateKey={dateKey}
               dish={menu.dish}
+              subDishes={subDishes}
               initial={responseInitial}
               prefilledFromPreference={prefilledFromPreference}
             />

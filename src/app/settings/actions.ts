@@ -5,7 +5,7 @@ import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin, requireStrictAdmin, hashPin } from "@/lib/auth";
 import { parseHHMM } from "@/lib/cutoff";
-import { normalizeDishKey, parseDefaultDishes } from "@/lib/dishes";
+import { normalizeDishKey, parseDefaultDishes, parseSubDishes } from "@/lib/dishes";
 import { getSettings } from "@/lib/settings";
 import { id } from "@/lib/id";
 
@@ -109,6 +109,9 @@ export async function addDefaultDishAction(
 
   const dish = String(formData.get("dish") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim() || null;
+  const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
+  const subDishes = parseSubDishes(subDishesRaw);
+
   if (!dish) return { error: id.errors.dishRequired };
 
   const settings = await getSettings();
@@ -120,7 +123,7 @@ export async function addDefaultDishAction(
 
   await db.settings.update({
     where: { id: "singleton" },
-    data: { defaultDishes: [...dishes, { name: dish, note }] },
+    data: { defaultDishes: [...dishes, { name: dish, note, subDishes }] },
   });
 
   revalidatePath("/settings");

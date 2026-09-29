@@ -30,6 +30,7 @@ model Menu {
   id             String     @id @default(cuid())
   date           DateTime
   dish           String
+  subDishes      String?
   note           String?
   cutoffOverride String?
   createdAt      DateTime   @default(now())

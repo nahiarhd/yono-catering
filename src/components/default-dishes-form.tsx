@@ -45,6 +45,21 @@ function DefaultDishRow({ dish }: { dish: DefaultDish }) {
             {t.dishNotePrefix} {dish.note}
           </p>
         )}
+        {dish.subDishes && dish.subDishes.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 mt-1.5">
+            <span className="text-[11px] font-bold text-[var(--text-muted)] mr-1">
+              {t.dishSubDishesPrefix}
+            </span>
+            {dish.subDishes.map((sub) => (
+              <span
+                key={sub}
+                className="text-[10px] font-bold bg-amber-100 border border-black px-1.5 py-0.5"
+              >
+                {sub}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <form action={action}>
         <input type="hidden" name="dish" value={dish.name} />
@@ -76,6 +91,12 @@ function AddDefaultDishForm() {
           {t.dishNote}
         </label>
         <Input id="dishNoteInput" name="note" placeholder={t.dishNotePlaceholder} />
+      </div>
+      <div>
+        <label htmlFor="dishSubDishesInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
+          {t.dishSubDishes}
+        </label>
+        <Input id="dishSubDishesInput" name="subDishes" placeholder={t.dishSubDishesPlaceholder} />
       </div>
       {state.error && <p className="font-bold text-[var(--danger)]">{state.error}</p>}
       {state.ok && <p className="font-bold text-[var(--success)]">{t.dishAdded}</p>}

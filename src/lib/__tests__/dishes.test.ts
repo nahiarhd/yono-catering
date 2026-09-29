@@ -8,28 +8,50 @@ async function main() {
   const stringDishes = ["Ayam Bakar", "Nasi Padang", "Ayam bakar"];
   const parsedFromString = parseDefaultDishes(stringDishes);
   assert.strictEqual(parsedFromString.length, 2);
-  assert.deepStrictEqual(parsedFromString[0], { name: "Ayam Bakar", note: null });
-  assert.deepStrictEqual(parsedFromString[1], { name: "Nasi Padang", note: null });
+  assert.deepStrictEqual(parsedFromString[0], { name: "Ayam Bakar", note: null, subDishes: [] });
+  assert.deepStrictEqual(parsedFromString[1], { name: "Nasi Padang", note: null, subDishes: [] });
 
-  // New format: objects with notes
+  // New format: objects with notes & subDishes
   const objectDishes = [
-    { name: "Nasi Padang", note: "Lauk: rendang, ayam pop, sambal ijo" },
+    {
+      name: "Bakmi Jogja",
+      note: "Jl. Kaliurang",
+      subDishes: ["Bakmi Goreng", "Bakmi Godhog", "Nasi Goreng"],
+    },
     { name: "Soto Betawi", note: "Daging + emping" },
-    { name: "nasi padang", note: "Duplicate should be skipped" },
+    { name: "bakmi jogja", note: "Duplicate should be skipped" },
   ];
   const parsedFromObjects = parseDefaultDishes(objectDishes);
   assert.strictEqual(parsedFromObjects.length, 2);
-  assert.strictEqual(parsedFromObjects[0].name, "Nasi Padang");
-  assert.strictEqual(parsedFromObjects[0].note, "Lauk: rendang, ayam pop, sambal ijo");
+  assert.strictEqual(parsedFromObjects[0].name, "Bakmi Jogja");
+  assert.strictEqual(parsedFromObjects[0].note, "Jl. Kaliurang");
+  assert.deepStrictEqual(parsedFromObjects[0].subDishes, [
+    "Bakmi Goreng",
+    "Bakmi Godhog",
+    "Nasi Goreng",
+  ]);
   assert.strictEqual(parsedFromObjects[1].name, "Soto Betawi");
-  assert.strictEqual(parsedFromObjects[1].note, "Daging + emping");
+  assert.deepStrictEqual(parsedFromObjects[1].subDishes, []);
+
+  // parseSubDishes string parsing
+  const { parseSubDishes } = await import("../dishes");
+  assert.deepStrictEqual(
+    parseSubDishes("Bakmi Goreng, Bakmi Godhog , Nasi Goreng, bakmi goreng"),
+    ["Bakmi Goreng", "Bakmi Godhog", "Nasi Goreng"]
+  );
+  assert.deepStrictEqual(parseSubDishes(""), []);
+  assert.deepStrictEqual(parseSubDishes(null), []);
 
   // Mixed items
   const mixed = ["Mie Goreng", { name: "Nasi Uduk", note: "Telur balado + bihun" }];
   const parsedMixed = parseDefaultDishes(mixed);
   assert.strictEqual(parsedMixed.length, 2);
-  assert.deepStrictEqual(parsedMixed[0], { name: "Mie Goreng", note: null });
-  assert.deepStrictEqual(parsedMixed[1], { name: "Nasi Uduk", note: "Telur balado + bihun" });
+  assert.deepStrictEqual(parsedMixed[0], { name: "Mie Goreng", note: null, subDishes: [] });
+  assert.deepStrictEqual(parsedMixed[1], {
+    name: "Nasi Uduk",
+    note: "Telur balado + bihun",
+    subDishes: [],
+  });
 
   // dishLabelForKey
   assert.strictEqual(dishLabelForKey(parsedFromObjects, "soto betawi"), "Soto Betawi");

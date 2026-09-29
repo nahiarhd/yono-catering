@@ -16,23 +16,32 @@ export function MenuForm({
 }: {
   action: (prev: State, formData: FormData) => Promise<State>;
   dateKey: string;
-  initial?: { dish: string; note: string | null; cutoffOverride: string | null };
+  initial?: {
+    dish: string;
+    subDishes?: string | null;
+    note: string | null;
+    cutoffOverride: string | null;
+  };
   defaultDishes?: (DefaultDish | string)[];
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const t = id.yono;
   const [dish, setDish] = useState(initial?.dish ?? "");
+  const [subDishes, setSubDishes] = useState(initial?.subDishes ?? "");
   const [menuNote, setMenuNote] = useState(initial?.note ?? "");
 
   const parsedDishes: DefaultDish[] = defaultDishes.map((d) =>
-    typeof d === "string" ? { name: d, note: null } : d
+    typeof d === "string" ? { name: d, note: null, subDishes: [] } : d
   );
 
   function handleSelectPreset(preset: DefaultDish) {
     setDish(preset.name);
-    if (preset.note) {
-      setMenuNote(preset.note);
-    }
+    setMenuNote(preset.note || "");
+    setSubDishes(
+      preset.subDishes && preset.subDishes.length > 0
+        ? preset.subDishes.join(", ")
+        : ""
+    );
   }
 
   return (
@@ -87,6 +96,17 @@ export function MenuForm({
             placeholder={t.notePlaceholder}
             value={menuNote}
             onChange={(e) => setMenuNote(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="subDishes">{t.subDishesLabel}</Label>
+          <Input
+            id="subDishes"
+            name="subDishes"
+            placeholder={t.subDishesPlaceholder}
+            value={subDishes}
+            onChange={(e) => setSubDishes(e.target.value)}
           />
         </div>
 

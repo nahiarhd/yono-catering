@@ -23,11 +23,13 @@ export function escapeHtml(str: string): string {
 
 export function formatMenuBroadcastMessage({
   dish,
+  subDishes,
   cutoff,
   note,
   appUrl,
 }: {
   dish: string;
+  subDishes?: string | null;
   cutoff: string;
   note?: string | null;
   appUrl: string;
@@ -35,12 +37,17 @@ export function formatMenuBroadcastMessage({
   const safeDish = escapeHtml(dish);
   const safeCutoff = escapeHtml(cutoff);
   const safeNote = note?.trim() ? escapeHtml(note.trim()) : null;
+  const safeSubDishes = subDishes?.trim() ? escapeHtml(subDishes.trim()) : null;
 
   const lines = [
     "🔔 <b>MENU HARI INI DIPOSTING!</b>",
     "",
     `🍽️ Menu: <b>${safeDish}</b>`,
   ];
+
+  if (safeSubDishes) {
+    lines.push(`🍲 Pilihan Varian: <b>${safeSubDishes}</b>`);
+  }
 
   if (safeNote) {
     lines.push(`📝 Catatan: ${safeNote}`);

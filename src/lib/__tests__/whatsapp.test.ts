@@ -70,7 +70,35 @@ function testEmptyOrders() {
   assert.ok(!msg.includes("—"), "Must not contain em dash");
 }
 
+function testWithSubDishes() {
+  const msg = buildWhatsAppMessage({
+    dateDisplay: "Jumat, 25 September 2026",
+    dish: "Bakmi Jogja",
+    note: null,
+    cutoff: "08:00",
+    breakdown: [
+      { dish: "Bakmi Goreng", count: 2 },
+      { dish: "Nasi Goreng", count: 1 },
+    ],
+    totalPortions: 3,
+    orders: [
+      { name: "Raihan", dish: "Bakmi Goreng", wants: true, note: "Pedas" },
+      { name: "Pram", dish: "Bakmi Goreng", wants: true, note: null },
+      { name: "Iqbal", dish: "Nasi Goreng", wants: true, note: "Gak pedes" },
+    ],
+    pendingMembers: [],
+  });
+
+  assert.ok(msg.includes("• Bakmi Goreng: 2 porsi"));
+  assert.ok(msg.includes("• Nasi Goreng: 1 porsi"));
+  assert.ok(msg.includes("1. Raihan (Bakmi Goreng) [Catatan: Pedas]"));
+  assert.ok(msg.includes("2. Pram (Bakmi Goreng)"));
+  assert.ok(msg.includes("3. Iqbal (Nasi Goreng) [Catatan: Gak pedes]"));
+  assert.ok(!msg.includes("—"), "Must not contain em dash");
+}
+
 testAllAnswered();
 testWithPendingMembers();
 testEmptyOrders();
+testWithSubDishes();
 console.log("whatsapp.test.ts ok");

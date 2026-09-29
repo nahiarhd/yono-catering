@@ -17,6 +17,8 @@ import {
   sendTelegramMessage,
 } from "@/lib/telegram";
 
+import { parseSubDishes, formatSubDishes } from "@/lib/dishes";
+
 export type ActionState = { error?: string; ok?: boolean };
 
 export async function postMenuAction(
@@ -27,6 +29,9 @@ export async function postMenuAction(
 
   const dateKey = String(formData.get("dateKey") ?? "");
   const dish = String(formData.get("dish") ?? "").trim();
+  const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
+  const subDishesList = parseSubDishes(subDishesRaw);
+  const subDishes = subDishesList.length > 0 ? formatSubDishes(subDishesList) : null;
   const menuNote = String(formData.get("menuNote") ?? "").trim() || null;
   const cutoffRaw = String(formData.get("cutoffOverride") ?? "").trim();
   const cutoffOverride = cutoffRaw ? cutoffRaw : null;
@@ -42,6 +47,7 @@ export async function postMenuAction(
   const menu = await upsertMenu({
     dateKey,
     dish,
+    subDishes,
     note: menuNote,
     cutoffOverride,
   });
@@ -66,6 +72,7 @@ export async function postMenuAction(
       try {
         const broadcastText = formatMenuBroadcastMessage({
           dish,
+          subDishes,
           cutoff,
           note: menuNote,
           appUrl: getAppUrl(),

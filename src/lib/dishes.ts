@@ -1,10 +1,49 @@
 export type DefaultDish = {
   name: string;
   note?: string | null;
+  subDishes?: string[];
 };
 
 export function normalizeDishKey(dish: string): string {
   return dish.trim().toLowerCase();
+}
+
+export function parseSubDishes(input: unknown): string[] {
+  if (!input) return [];
+  if (Array.isArray(input)) {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of input) {
+      if (typeof item !== "string") continue;
+      const clean = item.trim();
+      if (!clean) continue;
+      const key = clean.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(clean);
+    }
+    return out;
+  }
+  if (typeof input === "string") {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const parts = input.split(",");
+    for (const part of parts) {
+      const clean = part.trim();
+      if (!clean) continue;
+      const key = clean.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(clean);
+    }
+    return out;
+  }
+  return [];
+}
+
+export function formatSubDishes(subDishes?: string[] | null): string {
+  if (!subDishes || subDishes.length === 0) return "";
+  return subDishes.join(", ");
 }
 
 export function parseDefaultDishes(value: unknown): DefaultDish[] {
@@ -18,7 +57,7 @@ export function parseDefaultDishes(value: unknown): DefaultDish[] {
       const key = normalizeDishKey(name);
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ name, note: null });
+      out.push({ name, note: null, subDishes: [] });
     } else if (
       item &&
       typeof item === "object" &&
@@ -32,7 +71,9 @@ export function parseDefaultDishes(value: unknown): DefaultDish[] {
       seen.add(key);
       const rawNote = (item as { note?: unknown }).note;
       const note = typeof rawNote === "string" ? rawNote.trim() || null : null;
-      out.push({ name, note });
+      const rawSub = (item as { subDishes?: unknown }).subDishes;
+      const subDishes = parseSubDishes(rawSub);
+      out.push({ name, note, subDishes });
     }
   }
   return out;

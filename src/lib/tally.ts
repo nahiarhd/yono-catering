@@ -16,7 +16,17 @@ export function buildTally(menuDish: string, responses: ResponseRow[]) {
     if (r.note?.trim()) notes.push({ name: r.user.name, note: r.note.trim() });
   }
 
-  const breakdown = eating.length > 0 ? [{ dish: menuDish, count: eating.length }] : [];
+  const dishCounts = new Map<string, number>();
+  for (const r of eating) {
+    const item = r.swapDish?.trim() || menuDish;
+    dishCounts.set(item, (dishCounts.get(item) ?? 0) + 1);
+  }
+
+  const breakdown: { dish: string; count: number }[] = [];
+  for (const [dish, count] of dishCounts.entries()) {
+    breakdown.push({ dish, count });
+  }
+
   const parts = breakdown.map(({ dish, count }) => id.tally.portion(count, dish));
   return {
     summary: parts.join(", ") || id.tally.empty,

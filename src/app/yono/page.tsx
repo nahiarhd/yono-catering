@@ -56,7 +56,7 @@ export default async function YonoHomePage({
     .filter((r) => r.wants)
     .map((r) => ({
       name: r.user.name,
-      dish: menu!.dish,
+      dish: r.swapDish || menu!.dish,
       wants: true,
       note: r.note,
     }));
@@ -106,6 +106,7 @@ export default async function YonoHomePage({
           menu
             ? {
                 dish: menu.dish,
+                subDishes: menu.subDishes,
                 note: menu.note,
                 cutoffOverride: menu.cutoffOverride,
               }
@@ -178,9 +179,16 @@ export default async function YonoHomePage({
                         <span className="font-extrabold">
                           {idx + 1}. {o.name}
                         </span>
-                        <span className="text-xs border-2 border-black px-1.5 py-0.5 font-bold bg-emerald-200">
-                          {t.mainDishLabel}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {o.dish && o.dish !== menu!.dish && (
+                            <span className="text-xs border-2 border-black px-1.5 py-0.5 font-bold bg-amber-100">
+                              {o.dish}
+                            </span>
+                          )}
+                          <span className="text-xs border-2 border-black px-1.5 py-0.5 font-bold bg-emerald-200">
+                            {t.mainDishLabel}
+                          </span>
+                        </div>
                       </div>
                       {o.note && (
                         <p className="text-xs text-[var(--text-muted)] italic font-normal">

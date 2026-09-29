@@ -48,8 +48,9 @@ export function buildWhatsAppMessage(payload: WhatsAppPayload): string {
   lines.push(`*DAFTAR IKUT MAKAN (${eating.length} orang):*`);
   if (eating.length > 0) {
     eating.forEach((o, i) => {
+      const variant = o.dish && o.dish !== payload.dish ? ` (${o.dish})` : "";
       const note = o.note?.trim() ? ` [Catatan: ${o.note.trim()}]` : "";
-      lines.push(`${i + 1}. ${o.name}${note}`);
+      lines.push(`${i + 1}. ${o.name}${variant}${note}`);
     });
   } else {
     lines.push("(Belum ada yang ikut makan)");

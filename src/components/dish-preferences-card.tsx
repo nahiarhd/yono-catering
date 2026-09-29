@@ -34,9 +34,19 @@ export function DishPreferencesCard({
   function summary(dish: string) {
     const pref = prefByKey.get(normalizeDishKey(dish));
     if (!pref) return t.unset;
+    const variant = pref.swapDish ? ` (${pref.swapDish})` : "";
     const note = pref.note ? ` · ${pref.note}` : "";
-    return pref.wants ? `${t.follow}${note}` : `${t.skip}${note}`;
+    return pref.wants ? `${t.follow}${variant}${note}` : `${t.skip}${note}`;
   }
+
+  const activeDishObj = dishes.find((d) => {
+    const name = typeof d === "string" ? d : d.name;
+    return name === active;
+  });
+  const activeSubDishes =
+    activeDishObj && typeof activeDishObj !== "string"
+      ? activeDishObj.subDishes ?? []
+      : [];
 
   return (
     <Card className="neo-pref-card">
@@ -66,6 +76,7 @@ export function DishPreferencesCard({
         <DishPreferenceEditor
           key={active}
           forDish={active}
+          subDishes={activeSubDishes}
           initial={prefByKey.get(normalizeDishKey(active))}
         />
       )}
@@ -75,9 +86,11 @@ export function DishPreferencesCard({
 
 function DishPreferenceEditor({
   forDish,
+  subDishes = [],
   initial,
 }: {
   forDish: string;
+  subDishes?: string[];
   initial?: Pref;
 }) {
   const t = id.preferences;
@@ -86,6 +99,7 @@ function DishPreferenceEditor({
   const [removeState, removeAction, removePending] = useActionState(removeDishPreferenceAction, {});
 
   const [wants, setWants] = useState(initial?.wants !== false);
+  const [subDish, setSubDish] = useState(initial?.swapDish ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
 
   return (
@@ -95,7 +109,7 @@ function DishPreferenceEditor({
       <form action={saveAction} className="neo-pref-editor-form">
         <input type="hidden" name="forDish" value={forDish} />
         <input type="hidden" name="wants" value={wants ? "yes" : "no"} />
-        <input type="hidden" name="swapDish" value="" />
+        <input type="hidden" name="subDish" value={wants ? subDish : ""} />
 
         <div className="neo-response-choices">
           <button
@@ -117,6 +131,32 @@ function DishPreferenceEditor({
             <span className="neo-response-choice-hint">{t.noHint}</span>
           </button>
         </div>
+
+        {wants && subDishes.length > 0 && (
+          <div className="neo-response-fieldset mt-3">
+            <p className="text-xs font-bold uppercase mb-1.5">{t.chooseVariantDefault}</p>
+            <div className="flex flex-wrap gap-2">
+              {subDishes.map((variant) => {
+                const selected = subDish === variant;
+                return (
+                  <button
+                    key={variant}
+                    type="button"
+                    onClick={() => setSubDish((curr) => (curr === variant ? "" : variant))}
+                    className={`border-2 border-black font-extrabold text-xs px-3 py-2 min-h-[44px] transition-all cursor-pointer ${
+                      selected
+                        ? "bg-[var(--primary)] text-black shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
+                        : "bg-white hover:bg-stone-100 text-black"
+                    }`}
+                    aria-pressed={selected}
+                  >
+                    {variant}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="neo-response-notes">
           <p className="neo-response-notes-label">{rt.noteLabel}</p>

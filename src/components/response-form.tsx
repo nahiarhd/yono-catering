@@ -19,6 +19,7 @@ export function ResponseForm({
   locked,
   dateKey,
   dish,
+  subDishes = [],
   initial,
   prefilledFromPreference,
 }: {
@@ -26,6 +27,7 @@ export function ResponseForm({
   locked: boolean;
   dateKey: string;
   dish: string;
+  subDishes?: string[];
   initial?: Initial;
   prefilledFromPreference?: boolean;
 }) {
@@ -34,6 +36,9 @@ export function ResponseForm({
   const t = id.response;
 
   const [wants, setWants] = useState(initial?.wants !== false);
+  const [subDish, setSubDish] = useState(
+    initial?.swapDish ?? (subDishes.length === 1 ? subDishes[0] : "")
+  );
   const [note, setNote] = useState(initial?.note ?? "");
   const [saveAsPreference, setSaveAsPreference] = useState(true);
   const [dismissed, setDismissed] = useState(false);
@@ -56,6 +61,11 @@ export function ResponseForm({
               {initial.wants ? (
                 <>
                   {t.eating}: <strong>{dish}</strong>
+                  {initial.swapDish && (
+                    <span className="ml-1.5 inline-block text-xs border-2 border-black bg-amber-100 px-2 py-0.5 font-black uppercase">
+                      {initial.swapDish}
+                    </span>
+                  )}
                 </>
               ) : (
                 <strong>{t.notEating}</strong>
@@ -74,6 +84,9 @@ export function ResponseForm({
     setNote((current) => (current === preset ? "" : preset));
   }
 
+  const isSubDishRequired = wants && subDishes.length > 0;
+  const isMissingSubDish = isSubDishRequired && !subDish;
+
   return (
     <Card className="neo-response-card">
       <p className="neo-response-title">{t.title}</p>
@@ -90,7 +103,7 @@ export function ResponseForm({
       >
         <input type="hidden" name="dateKey" value={dateKey} />
         <input type="hidden" name="wants" value={wants ? "yes" : "no"} />
-        <input type="hidden" name="swapDish" value="" />
+        <input type="hidden" name="subDish" value={wants ? subDish : ""} />
 
         <fieldset className="neo-response-fieldset">
           <legend className="neo-response-legend">{t.wantDish}</legend>
@@ -115,6 +128,39 @@ export function ResponseForm({
             </button>
           </div>
         </fieldset>
+
+        {wants && subDishes.length > 0 && (
+          <fieldset className="neo-response-fieldset">
+            <legend className="neo-response-legend">
+              {t.chooseVariant} <span className="text-rose-600 font-black">*</span>
+            </legend>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {subDishes.map((variant) => {
+                const selected = subDish === variant;
+                return (
+                  <button
+                    key={variant}
+                    type="button"
+                    onClick={() => setSubDish(variant)}
+                    className={`border-2 border-black font-black text-xs px-3.5 py-2.5 min-h-[44px] transition-all cursor-pointer ${
+                      selected
+                        ? "bg-[var(--primary)] text-black shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
+                        : "bg-white hover:bg-stone-100 text-black"
+                    }`}
+                    aria-pressed={selected}
+                  >
+                    {variant}
+                  </button>
+                );
+              })}
+            </div>
+            {isMissingSubDish && (
+              <p className="text-xs font-bold text-rose-600 mt-1.5">
+                {t.variantRequired}
+              </p>
+            )}
+          </fieldset>
+        )}
 
         <div className="neo-response-notes">
           <p className="neo-response-notes-label">{t.noteLabel}</p>
@@ -163,7 +209,12 @@ export function ResponseForm({
         {state.error && <p className="neo-response-error">{state.error}</p>}
         {state.ok && <p className="neo-response-success">{t.saved}</p>}
 
-        <Button type="submit" variant="primary" disabled={pending} className="neo-response-submit">
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={pending || isMissingSubDish}
+          className="neo-response-submit"
+        >
           {pending ? t.saving : t.submit}
         </Button>
       </form>

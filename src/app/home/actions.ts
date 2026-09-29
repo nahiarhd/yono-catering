@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getMenuDay } from "@/lib/menu-data";
-import { normalizeDishKey } from "@/lib/dishes";
+import { normalizeDishKey, parseSubDishes } from "@/lib/dishes";
 import { upsertDishPreference } from "@/lib/preferences";
 import { todayKey } from "@/lib/dates";
 import { id } from "@/lib/id";
@@ -14,8 +14,10 @@ export type ActionState = { error?: string; ok?: boolean };
 function parsePreferenceFields(formData: FormData) {
   const wantsRaw = String(formData.get("wants") ?? "yes");
   const wants = wantsRaw === "yes";
+  const subDishRaw = String(formData.get("subDish") ?? formData.get("swapDish") ?? "").trim();
+  const swapDish = wants && subDishRaw ? subDishRaw : null;
   const note = String(formData.get("note") ?? "").trim() || null;
-  return { wants, swapDish: null, note };
+  return { wants, swapDish, note };
 }
 
 export async function submitResponseAction(
@@ -24,7 +26,7 @@ export async function submitResponseAction(
 ): Promise<ActionState> {
   const user = await requireUser();
   const dateKey = String(formData.get("dateKey") ?? "");
-  const { wants, note } = parsePreferenceFields(formData);
+  const { wants, swapDish, note } = parsePreferenceFields(formData);
   const saveAsPreference = String(formData.get("saveAsPreference") ?? "") === "yes";
 
   if (!dateKey || dateKey < todayKey()) return { error: id.errors.missingDay };
@@ -33,24 +35,29 @@ export async function submitResponseAction(
   if (!menu) return { error: id.errors.noMenu };
   if (locked) return { error: id.errors.locked };
 
+  const menuSubDishes = parseSubDishes(menu.subDishes);
+  if (wants && menuSubDishes.length > 0 && !swapDish) {
+    return { error: id.response.variantRequired };
+  }
+
   await db.response.upsert({
     where: { menuId_userId: { menuId: menu.id, userId: user.id } },
     create: {
       menuId: menu.id,
       userId: user.id,
       wants,
-      swapDish: null,
+      swapDish,
       note,
     },
     update: {
       wants,
-      swapDish: null,
+      swapDish,
       note,
     },
   });
 
   if (saveAsPreference) {
-    await upsertDishPreference(user.id, menu.dish, { wants, swapDish: null, note });
+    await upsertDishPreference(user.id, menu.dish, { wants, swapDish, note });
   }
 
   revalidatePath("/home");
@@ -63,11 +70,11 @@ export async function saveDishPreferenceAction(
 ): Promise<ActionState> {
   const user = await requireUser();
   const forDish = String(formData.get("forDish") ?? "").trim();
-  const { wants, note } = parsePreferenceFields(formData);
+  const { wants, swapDish, note } = parsePreferenceFields(formData);
 
   if (!forDish) return { error: id.errors.dishRequired };
 
-  await upsertDishPreference(user.id, forDish, { wants, swapDish: null, note });
+  await upsertDishPreference(user.id, forDish, { wants, swapDish, note });
 
   revalidatePath("/home");
   revalidatePath("/preferences");
