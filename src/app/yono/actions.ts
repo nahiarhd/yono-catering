@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireYono } from "@/lib/auth";
 import { parseHHMM, effectiveCutoff } from "@/lib/cutoff";
@@ -170,4 +171,57 @@ export async function pingTelegramRemindersAction(
   }
 
   return { ok: true, count: sent };
+}
+
+export async function recordMemberResponseAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireYono();
+
+  const dateKey = String(formData.get("dateKey") ?? "").trim();
+  const userId = String(formData.get("userId") ?? "").trim();
+  const wantsRaw = String(formData.get("wants") ?? "yes");
+  const wants = wantsRaw === "yes";
+  const subDish = String(formData.get("subDish") ?? "").trim() || null;
+  const note = String(formData.get("note") ?? "").trim() || null;
+
+  if (!dateKey || !userId) {
+    return { error: "Data anggota tidak lengkap." };
+  }
+
+  const { menu } = await getMenuDay(dateKey);
+  if (!menu) {
+    return { error: id.errors.noMenu };
+  }
+
+  const targetUser = await db.user.findUnique({ where: { id: userId } });
+  if (!targetUser) {
+    return { error: id.errors.memberNotFound };
+  }
+
+  const menuSubDishes = parseSubDishes(menu.subDishes);
+  if (wants && menuSubDishes.length > 0 && !subDish) {
+    return { error: id.response.variantRequired };
+  }
+
+  await db.response.upsert({
+    where: { menuId_userId: { menuId: menu.id, userId } },
+    create: {
+      menuId: menu.id,
+      userId,
+      wants,
+      swapDish: wants ? subDish : null,
+      note,
+    },
+    update: {
+      wants,
+      swapDish: wants ? subDish : null,
+      note,
+    },
+  });
+
+  revalidatePath("/yono");
+  revalidatePath("/home");
+  return { ok: true };
 }

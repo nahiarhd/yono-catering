@@ -9,12 +9,13 @@ import { buildWhatsAppMessage, buildWhatsAppUrl, type WhatsAppOrder } from "@/li
 import { id } from "@/lib/id";
 import { db } from "@/lib/db";
 import { postMenuAction } from "./actions";
+import { parseSubDishes } from "@/lib/dishes";
 import { PageShell, Card } from "@/components/ui";
 import { AppNav } from "@/components/nav";
 import { DatePicker } from "@/components/date-picker";
 import { MenuForm } from "@/components/menu-form";
 import { WhatsAppShareCard } from "@/components/whatsapp-share";
-import { TelegramPingButton } from "@/components/telegram-ping-button";
+import { PendingMembersList } from "@/components/pending-members-list";
 
 export default async function YonoHomePage({
   searchParams,
@@ -46,9 +47,8 @@ export default async function YonoHomePage({
   const tally = menu ? buildTally(menu.dish, nonYonoResponses) : null;
 
   const respondedUserIds = new Set(nonYonoResponses.map((r) => r.userId));
-  const pendingMembers = eaters
-    .filter((e) => !respondedUserIds.has(e.id))
-    .map((e) => e.name);
+  const pendingUsers = eaters.filter((e) => !respondedUserIds.has(e.id));
+  const pendingMembers = pendingUsers.map((e) => e.name);
 
   const isAllAnswered = eaters.length > 0 && pendingMembers.length === 0;
 
@@ -223,28 +223,13 @@ export default async function YonoHomePage({
               </div>
             )}
 
-            {pendingMembers.length > 0 && (
-              <div className="mt-4 border-t-2 border-black pt-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <p className="neo-label text-xs text-rose-700">
-                    {t.pendingList} ({pendingMembers.length} orang)
-                  </p>
-                  <TelegramPingButton
-                    dateKey={dateKey}
-                    pendingCount={pendingMembers.length}
-                  />
-                </div>
-                <ul className="mt-2.5 flex flex-wrap gap-1.5">
-                  {pendingMembers.map((name) => (
-                    <li
-                      key={name}
-                      className="border-2 border-black bg-rose-100 px-2 py-0.5 text-xs font-bold"
-                    >
-                      {name}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {pendingUsers.length > 0 && (
+              <PendingMembersList
+                dateKey={dateKey}
+                menuDish={menu.dish}
+                subDishes={parseSubDishes(menu.subDishes)}
+                pendingUsers={pendingUsers}
+              />
             )}
           </Card>
 

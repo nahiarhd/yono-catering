@@ -9,13 +9,14 @@ import {
   preferenceToInitial,
 } from "@/lib/preferences";
 import { id } from "@/lib/id";
-import { savePushSubscription } from "@/app/actions/push";
+import { db } from "@/lib/db";
+import { buildTally } from "@/lib/tally";
 import { submitResponseAction } from "./actions";
 import { PageShell, Card } from "@/components/ui";
 import { AppNav } from "@/components/nav";
 import { DatePicker } from "@/components/date-picker";
 import { ResponseForm } from "@/components/response-form";
-import { PushSubscribe } from "@/components/push-subscribe";
+import { MemberOrdersSummary } from "@/components/member-orders-summary";
 
 export default async function MemberHomePage({
   searchParams,
@@ -29,7 +30,14 @@ export default async function MemberHomePage({
     redirect("/home");
   }
   const dateKey = params.date ?? today;
-  const { settings, menu, locked } = await getMenuDay(dateKey);
+  const [{ settings, menu, locked }, eaters] = await Promise.all([
+    getMenuDay(dateKey),
+    db.user.findMany({
+      where: { role: { not: "yono" } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
   const myResponse = menu?.responses.find((r) => r.userId === user.id);
   const dishPreference =
     menu && canOrder(user)
@@ -40,10 +48,32 @@ export default async function MemberHomePage({
   const subDishes = menu ? parseSubDishes(menu.subDishes) : [];
   const t = id.home;
 
+  const nonYonoResponses = menu
+    ? menu.responses.filter((r) => r.user.role !== "yono")
+    : [];
+  const tally = menu ? buildTally(menu.dish, nonYonoResponses) : null;
+  const respondedUserIds = new Set(nonYonoResponses.map((r) => r.userId));
+  const pendingMembers = eaters
+    .filter((e) => !respondedUserIds.has(e.id))
+    .map((e) => e.name);
+
+  const eatingOrders = nonYonoResponses
+    .filter((r) => r.wants)
+    .map((r) => ({
+      name: r.user.name,
+      dish: r.swapDish || menu!.dish,
+      note: r.note,
+    }));
+
+  const notEatingOrders = nonYonoResponses
+    .filter((r) => !r.wants)
+    .map((r) => ({
+      name: r.user.name,
+      note: r.note,
+    }));
+
   return (
     <PageShell title={formatDisplayDate(dateKey)} nav={<AppNav role={user.role} />}>
-      <PushSubscribe onSave={savePushSubscription} />
-
       <DatePicker key={dateKey} value={dateKey} todayKey={todayKey()} basePath="/home" />
 
       {menu ? (
@@ -97,6 +127,18 @@ export default async function MemberHomePage({
               subDishes={subDishes}
               initial={responseInitial}
               prefilledFromPreference={prefilledFromPreference}
+            />
+          )}
+
+          {tally && (
+            <MemberOrdersSummary
+              mainDish={menu.dish}
+              totalMembers={eaters.length}
+              eatingOrders={eatingOrders}
+              notEatingOrders={notEatingOrders}
+              pendingMembers={pendingMembers}
+              breakdown={tally.breakdown}
+              totalPortions={tally.total}
             />
           )}
         </>

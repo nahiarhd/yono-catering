@@ -48,6 +48,7 @@ export function AppNav({ role }: { role: Role }) {
         <>
           <NavLink href="/home">{t.home}</NavLink>
           <NavLink href="/preferences">{t.preferences}</NavLink>
+          <NavLink href="/settings">{t.settings}</NavLink>
         </>
       )}
       <form action={logoutAction}>

@@ -2,7 +2,7 @@
 export const id = {
   app: {
     name: "Yono Catering",
-    tagline: "Kantor COOFIS nih BOOSSS!!!",
+    tagline: "Lek ate mangan, list-en rek!",
     description:
       "Buat yang belum tahu, ini aplikasi buat bantu Pak Yono ngumpulin pesenan makan siang dari kita-kita. Jadi Pak Yono bisa masak sesuai jumlah yang dibutuhkan aja, gak kebanyakan atau kekurangan. Kita juga bisa kasih catatan kalau mau, misal pedas atau gak pakai cabe. Pokoknya biar makan siangnya makin enak dan sesuai selera kita semua deh!",
   },
@@ -142,6 +142,16 @@ export const id = {
     pingTelegramLoading: "Mengirim Pengingat...",
     pingTelegramSuccess: (count: number) => `Pengingat terkirim ke ${count} orang!`,
     pingTelegramEmpty: "Tidak ada anggota tertunda dengan Telegram ID.",
+    pendingHint: "Klik nama anggota untuk mencatat status makan hari ini.",
+    pendingBadgeTooltip: (name: string) => `Klik untuk catat pilihan ${name}`,
+    recordResponseTitle: (name: string) => `Catat Pilihan: ${name}`,
+    recordResponseSubtitle: (name: string, dish: string) =>
+      `Tentukan apakah ${name} ikut makan menu ${dish} hari ini.`,
+    recordEating: "Ikut Makan (Ya)",
+    recordNotEating: "Tidak Ikut Makan (Tidak)",
+    recordSave: "Simpan Pilihan",
+    recordSaving: "Menyimpan…",
+    recordSuccess: "Pilihan berhasil disimpan!",
   },
   whatsapp: {
     cardTitle: "Kirim Rekap WhatsApp",
@@ -192,6 +202,22 @@ export const id = {
     yonoBadge: "Koki",
     manageUsersHint: "Untuk menambah atau mengelola anggota kantor & admin, buka halaman Pengguna.",
     manageUsersBtn: "Buka Kelola Pengguna",
+  },
+  account: {
+    updatePinTitle: "Ubah PIN Akun",
+    updatePinDesc: "Perbarui PIN login kamu untuk menjaga keamanan akun.",
+    currentPin: "PIN Saat Ini",
+    currentPinPlaceholder: "Masukkan PIN lama",
+    newPin: "PIN Baru",
+    newPinPlaceholder: "PIN baru (min. 4 digit)",
+    confirmPin: "Konfirmasi PIN Baru",
+    confirmPinPlaceholder: "Ulangi PIN baru",
+    updatePinBtn: "Simpan PIN Baru",
+    updatingPin: "Menyimpan…",
+    pinUpdatedSuccess: "PIN berhasil diperbarui!",
+    errorCurrentPinWrong: "PIN saat ini salah.",
+    errorPinMismatch: "Konfirmasi PIN baru tidak cocok.",
+    errorAllFieldsRequired: "Semua kolom PIN wajib diisi.",
   },
   users: {
     title: "Kelola Pengguna",

@@ -3,6 +3,7 @@ import type {
   InputHTMLAttributes,
   ReactNode,
   SelectHTMLAttributes,
+  Ref,
 } from "react";
 import { id } from "@/lib/id";
 
@@ -49,9 +50,10 @@ export function Button({
 
 export function Input({
   className = "",
+  ref,
   ...props
-}: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={`neo-input ${className}`} {...props} />;
+}: InputHTMLAttributes<HTMLInputElement> & { ref?: Ref<HTMLInputElement> }) {
+  return <input ref={ref} className={`neo-input ${className}`} {...props} />;
 }
 
 export function Select({

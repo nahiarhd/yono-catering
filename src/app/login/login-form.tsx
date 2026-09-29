@@ -1,13 +1,21 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState } from "react";
+import { useActionState, useState, useRef } from "react";
 import { loginAction } from "./actions";
 import { id } from "@/lib/id";
 import { Button, Input, Label, Select } from "@/components/ui";
 
-export function LoginForm({ names }: { names: string[] }) {
+export function LoginForm({
+  names,
+  yonoName,
+}: {
+  names: string[];
+  yonoName?: string;
+}) {
   const [state, action, pending] = useActionState(loginAction, {});
+  const [selectedName, setSelectedName] = useState("");
+  const pinInputRef = useRef<HTMLInputElement>(null);
   const t = id.login;
 
   if (names.length === 0) {
@@ -53,14 +61,35 @@ export function LoginForm({ names }: { names: string[] }) {
 
           <form action={action} className="flex flex-col gap-5">
             <div>
-              <Label htmlFor="name">{t.who}</Label>
-              <Select id="name" name="name" required defaultValue="">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <Label htmlFor="name">{t.who}</Label>
+                {yonoName && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedName(yonoName);
+                      pinInputRef.current?.focus();
+                    }}
+                    className="text-xs font-bold bg-amber-100 hover:bg-amber-200 border border-black px-2 py-0.5 cursor-pointer flex items-center gap-1 transition-colors"
+                    title={`Pilih langsung ${yonoName}`}
+                  >
+                    👨‍🍳 Saya {yonoName}
+                  </button>
+                )}
+              </div>
+              <Select
+                id="name"
+                name="name"
+                required
+                value={selectedName}
+                onChange={(e) => setSelectedName(e.target.value)}
+              >
                 <option value="" disabled>
                   {t.pickName}
                 </option>
                 {names.map((name) => (
                   <option key={name} value={name}>
-                    {name}
+                    {name === yonoName ? `⭐ ${name} (Koki)` : name}
                   </option>
                 ))}
               </Select>
@@ -69,6 +98,7 @@ export function LoginForm({ names }: { names: string[] }) {
             <div>
               <Label htmlFor="pin">{t.pin}</Label>
               <Input
+                ref={pinInputRef}
                 id="pin"
                 name="pin"
                 type="password"

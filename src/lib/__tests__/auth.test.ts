@@ -27,7 +27,7 @@ async function main() {
   assert.ok(adminPayload);
   assert.strictEqual(adminPayload?.role, "admin");
 
-  const { isAdmin, isStrictAdmin, canOrder } = await import("../auth");
+  const { isAdmin, isStrictAdmin, canOrder, hashPin, verifyPin } = await import("../auth");
   assert.strictEqual(isAdmin({ role: "yono" }), true);
   assert.strictEqual(isAdmin({ role: "admin" }), true);
   assert.strictEqual(isAdmin({ role: "member" }), false);
@@ -39,6 +39,12 @@ async function main() {
   assert.strictEqual(canOrder({ role: "yono" }), false);
   assert.strictEqual(canOrder({ role: "admin" }), true);
   assert.strictEqual(canOrder({ role: "member" }), true);
+
+  // Test PIN hashing and verification
+  const hashed = await hashPin("1234");
+  assert.ok(hashed);
+  assert.strictEqual(await verifyPin(hashed, "1234"), true);
+  assert.strictEqual(await verifyPin(hashed, "9999"), false);
 
   console.log("auth.test.ts ok");
 }

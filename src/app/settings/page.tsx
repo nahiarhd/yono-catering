@@ -1,26 +1,60 @@
 import Link from "next/link";
-import { requireAdmin } from "@/lib/auth";
+import { requireUser, isAdmin } from "@/lib/auth";
 import { getSettings, getDefaultDishes } from "@/lib/settings";
 import { id } from "@/lib/id";
 import { PageShell, Card } from "@/components/ui";
 import { AppNav } from "@/components/nav";
 import { DefaultDishesForm } from "@/components/default-dishes-form";
+import { UpdatePinCard } from "@/components/update-pin-card";
 import { SettingsForm } from "./settings-forms";
 
 export default async function SettingsPage() {
-  const user = await requireAdmin();
-  const [settings, defaultDishes] = await Promise.all([getSettings(), getDefaultDishes()]);
+  const user = await requireUser();
+  const isKitchenOrAdmin = isAdmin(user);
   const isSuperAdmin = user.role === "admin";
+
+  const [settings, defaultDishes] = isKitchenOrAdmin
+    ? await Promise.all([getSettings(), getDefaultDishes()])
+    : [null, null];
 
   return (
     <PageShell title={id.settings.title} nav={<AppNav role={user.role} />}>
-      <SettingsForm
-        standingCutoff={settings.standingCutoff}
-        reminderTime={settings.reminderTime}
-      />
+      {/* Pengaturan Akun: Ubah PIN (Bisa diakses oleh semua pengguna) */}
+      <UpdatePinCard />
 
-      <DefaultDishesForm dishes={defaultDishes} />
+      {/* Pengaturan Katering & Dapur (Hanya untuk Admin & Pak Yono) */}
+      {isKitchenOrAdmin && settings && defaultDishes && (
+        <>
+          <SettingsForm
+            standingCutoff={settings.standingCutoff}
+            reminderTime={settings.reminderTime}
+          />
 
+          <DefaultDishesForm dishes={defaultDishes} />
+        </>
+      )}
+
+      {/* Shortcut ke Preferensi Menu untuk Member */}
+      {!isKitchenOrAdmin && (
+        <Card>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="neo-label">{id.preferences.title}</p>
+              <p className="mt-1 text-sm text-[var(--text-muted)] font-medium">
+                Atur pilihan otomatis kamu setiap kali menu katering tertentu diposting.
+              </p>
+            </div>
+            <Link
+              href="/preferences"
+              className="neo-btn neo-btn-primary text-sm whitespace-nowrap min-h-[44px]"
+            >
+              Buka Preferensi →
+            </Link>
+          </div>
+        </Card>
+      )}
+
+      {/* Kelola Pengguna (Super Admin) */}
       {isSuperAdmin && (
         <Card>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -30,7 +64,10 @@ export default async function SettingsPage() {
                 {id.settings.manageUsersHint}
               </p>
             </div>
-            <Link href="/users" className="neo-btn neo-btn-primary text-sm whitespace-nowrap">
+            <Link
+              href="/users"
+              className="neo-btn neo-btn-primary text-sm whitespace-nowrap min-h-[44px]"
+            >
               {id.settings.manageUsersBtn} →
             </Link>
           </div>

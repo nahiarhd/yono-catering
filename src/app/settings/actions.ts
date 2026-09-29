@@ -3,13 +3,51 @@
 import { revalidatePath } from "next/cache";
 import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireAdmin, requireStrictAdmin, hashPin } from "@/lib/auth";
+import { requireAdmin, requireStrictAdmin, requireUser, verifyPin, hashPin } from "@/lib/auth";
 import { parseHHMM } from "@/lib/cutoff";
 import { normalizeDishKey, parseDefaultDishes, parseSubDishes } from "@/lib/dishes";
 import { getSettings } from "@/lib/settings";
 import { id } from "@/lib/id";
 
-export type ActionState = { error?: string; ok?: boolean };
+export type ActionState = { error?: string; ok?: boolean; message?: string };
+
+export async function updateOwnPinAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireUser();
+
+  const currentPin = String(formData.get("currentPin") ?? "").trim();
+  const newPin = String(formData.get("newPin") ?? "").trim();
+  const confirmPin = String(formData.get("confirmPin") ?? "").trim();
+
+  if (!currentPin || !newPin || !confirmPin) {
+    return { error: id.account.errorAllFieldsRequired };
+  }
+
+  const isCurrentValid = await verifyPin(user.pinHash, currentPin);
+  if (!isCurrentValid) {
+    return { error: id.account.errorCurrentPinWrong };
+  }
+
+  if (newPin.length < 4) {
+    return { error: id.errors.pinMinLength };
+  }
+
+  if (newPin !== confirmPin) {
+    return { error: id.account.errorPinMismatch };
+  }
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { pinHash: await hashPin(newPin) },
+  });
+
+  revalidatePath("/preferences");
+  revalidatePath("/settings");
+  revalidatePath("/users");
+  return { ok: true, message: id.account.pinUpdatedSuccess };
+}
 
 export async function updateSettingsAction(
   _prev: ActionState,
