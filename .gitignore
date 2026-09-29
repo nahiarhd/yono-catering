@@ -25,6 +25,8 @@
 *.pem
 *.db
 *.db-journal
+*.tar.gz
+*.zip
 
 # debug
 npm-debug.log*
