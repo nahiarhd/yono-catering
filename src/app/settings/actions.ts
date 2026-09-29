@@ -133,6 +133,59 @@ export async function addDefaultDishAction(
   return { ok: true };
 }
 
+export async function updateDefaultDishAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireAdmin();
+
+  const originalDish = String(formData.get("originalDish") ?? "").trim();
+  const dish = String(formData.get("dish") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim() || null;
+  const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
+  const subDishes = parseSubDishes(subDishesRaw);
+
+  if (!originalDish || !dish) return { error: id.errors.dishRequired };
+
+  const settings = await getSettings();
+  const dishes = parseDefaultDishes(settings.defaultDishes);
+  const origKey = normalizeDishKey(originalDish);
+  const targetIndex = dishes.findIndex((d) => normalizeDishKey(d.name) === origKey);
+
+  if (targetIndex === -1) {
+    return { error: id.errors.dishNotFound };
+  }
+
+  const newKey = normalizeDishKey(dish);
+  const duplicate = dishes.some(
+    (d, idx) => idx !== targetIndex && normalizeDishKey(d.name) === newKey
+  );
+  if (duplicate) {
+    return { error: id.errors.dishExists };
+  }
+
+  const nextDishes = [...dishes];
+  nextDishes[targetIndex] = { name: dish, note, subDishes };
+
+  await db.settings.update({
+    where: { id: "singleton" },
+    data: { defaultDishes: nextDishes },
+  });
+
+  if (newKey !== origKey) {
+    await db.dishPreference.updateMany({
+      where: { forDish: origKey },
+      data: { forDish: newKey },
+    });
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/yono");
+  revalidatePath("/home");
+  revalidatePath("/preferences");
+  return { ok: true };
+}
+
 export async function removeDefaultDishAction(
   _prev: ActionState,
   formData: FormData,

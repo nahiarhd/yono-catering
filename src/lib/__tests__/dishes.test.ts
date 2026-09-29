@@ -55,7 +55,24 @@ async function main() {
 
   // dishLabelForKey
   assert.strictEqual(dishLabelForKey(parsedFromObjects, "soto betawi"), "Soto Betawi");
-  assert.strictEqual(dishLabelForKey(["Bebek Goreng"], "bebek goreng"), "Bebek Goreng");
+  // formatSubDishes
+  const { formatSubDishes } = await import("../dishes");
+  assert.strictEqual(formatSubDishes(["Bakmi Goreng", "Nasi Goreng"]), "Bakmi Goreng, Nasi Goreng");
+  assert.strictEqual(formatSubDishes([]), "");
+  assert.strictEqual(formatSubDishes(null), "");
+
+  // Update simulation
+  const dishesList = parseDefaultDishes(objectDishes);
+  const targetIdx = dishesList.findIndex((d) => normalizeDishKey(d.name) === "bakmi jogja");
+  assert.ok(targetIdx !== -1);
+  dishesList[targetIdx] = {
+    name: "Bakmi Jogja Spesial",
+    note: "Porsi Jumbo",
+    subDishes: ["Bakmi Nyemek"],
+  };
+  assert.strictEqual(dishesList[targetIdx].name, "Bakmi Jogja Spesial");
+  assert.strictEqual(dishesList[targetIdx].note, "Porsi Jumbo");
+  assert.deepStrictEqual(dishesList[targetIdx].subDishes, ["Bakmi Nyemek"]);
 
   console.log("dishes.test.ts ok");
 }
