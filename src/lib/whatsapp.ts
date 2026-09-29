@@ -1,7 +1,8 @@
 export type WhatsAppOrder = {
   name: string;
-  dish: string;
-  isSwap: boolean;
+  dish?: string;
+  wants?: boolean;
+  isSwap?: boolean;
   note: string | null;
 };
 
@@ -41,15 +42,26 @@ export function buildWhatsAppMessage(payload: WhatsAppPayload): string {
   lines.push(`*Total: ${payload.totalPortions} porsi*`);
   lines.push("");
 
-  lines.push(`*DAFTAR PESANAN (${payload.orders.length} orang):*`);
-  if (payload.orders.length > 0) {
-    payload.orders.forEach((o, i) => {
-      const type = o.isSwap ? " (Ganti)" : "";
+  const eating = payload.orders.filter((o) => o.wants !== false);
+  const notEating = payload.orders.filter((o) => o.wants === false);
+
+  lines.push(`*DAFTAR IKUT MAKAN (${eating.length} orang):*`);
+  if (eating.length > 0) {
+    eating.forEach((o, i) => {
       const note = o.note?.trim() ? ` [Catatan: ${o.note.trim()}]` : "";
-      lines.push(`${i + 1}. ${o.name}: ${o.dish}${type}${note}`);
+      lines.push(`${i + 1}. ${o.name}${note}`);
     });
   } else {
-    lines.push("(Belum ada anggota yang memilih)");
+    lines.push("(Belum ada yang ikut makan)");
+  }
+
+  if (notEating.length > 0) {
+    lines.push("");
+    lines.push(`*TIDAK IKUT MAKAN (${notEating.length} orang):*`);
+    notEating.forEach((o) => {
+      const note = o.note?.trim() ? ` [Catatan: ${o.note.trim()}]` : "";
+      lines.push(`• ${o.name}${note}`);
+    });
   }
 
   if (payload.pendingMembers.length > 0) {

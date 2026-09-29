@@ -14,6 +14,7 @@ import { AppNav } from "@/components/nav";
 import { DatePicker } from "@/components/date-picker";
 import { MenuForm } from "@/components/menu-form";
 import { WhatsAppShareCard } from "@/components/whatsapp-share";
+import { TelegramPingButton } from "@/components/telegram-ping-button";
 
 export default async function YonoHomePage({
   searchParams,
@@ -51,12 +52,25 @@ export default async function YonoHomePage({
 
   const isAllAnswered = eaters.length > 0 && pendingMembers.length === 0;
 
-  const orders: WhatsAppOrder[] = nonYonoResponses.map((r) => ({
-    name: r.user.name,
-    dish: r.wants ? menu!.dish : (r.swapDish?.trim() || id.tally.swap),
-    isSwap: !r.wants,
-    note: r.note,
-  }));
+  const eatingOrders: WhatsAppOrder[] = nonYonoResponses
+    .filter((r) => r.wants)
+    .map((r) => ({
+      name: r.user.name,
+      dish: menu!.dish,
+      wants: true,
+      note: r.note,
+    }));
+
+  const notEatingOrders: WhatsAppOrder[] = nonYonoResponses
+    .filter((r) => !r.wants)
+    .map((r) => ({
+      name: r.user.name,
+      dish: undefined,
+      wants: false,
+      note: r.note,
+    }));
+
+  const orders: WhatsAppOrder[] = [...eatingOrders, ...notEatingOrders];
 
   const cutoffText = menu
     ? effectiveCutoff(settings.standingCutoff, menu.cutoffOverride)
@@ -152,10 +166,10 @@ export default async function YonoHomePage({
             </div>
 
             <div className="mt-4 border-t-2 border-black pt-4">
-              <p className="neo-label text-xs">{t.ordersList}</p>
-              {orders.length > 0 ? (
+              <p className="neo-label text-xs">{t.ordersList} ({eatingOrders.length} orang)</p>
+              {eatingOrders.length > 0 ? (
                 <ol className="mt-2 space-y-2">
-                  {orders.map((o, idx) => (
+                  {eatingOrders.map((o, idx) => (
                     <li
                       key={o.name}
                       className="border-2 border-black bg-[var(--surface-sunken)] p-2.5 text-sm font-semibold flex flex-col gap-1"
@@ -164,15 +178,10 @@ export default async function YonoHomePage({
                         <span className="font-extrabold">
                           {idx + 1}. {o.name}
                         </span>
-                        <span
-                          className={`text-xs border-2 border-black px-1.5 py-0.5 font-bold ${
-                            o.isSwap ? "bg-amber-200" : "bg-emerald-200"
-                          }`}
-                        >
-                          {o.isSwap ? t.swapDishLabel : t.mainDishLabel}
+                        <span className="text-xs border-2 border-black px-1.5 py-0.5 font-bold bg-emerald-200">
+                          {t.mainDishLabel}
                         </span>
                       </div>
-                      <p className="text-sm">{o.dish}</p>
                       {o.note && (
                         <p className="text-xs text-[var(--text-muted)] italic font-normal">
                           Catatan: {o.note}
@@ -183,17 +192,41 @@ export default async function YonoHomePage({
                 </ol>
               ) : (
                 <p className="mt-2 text-sm italic text-[var(--text-muted)]">
-                  Belum ada anggota yang memilih.
+                  Belum ada yang memilih ikut makan.
                 </p>
               )}
             </div>
 
-            {pendingMembers.length > 0 && (
+            {notEatingOrders.length > 0 && (
               <div className="mt-4 border-t-2 border-black pt-4">
-                <p className="neo-label text-xs text-rose-700">
-                  {t.pendingList} ({pendingMembers.length} orang)
+                <p className="neo-label text-xs text-[var(--text-muted)]">
+                  {t.notEatingList} ({notEatingOrders.length} orang)
                 </p>
                 <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {notEatingOrders.map((o) => (
+                    <li
+                      key={o.name}
+                      className="border-2 border-black bg-stone-100 px-2 py-0.5 text-xs font-bold"
+                    >
+                      {o.name}{o.note ? ` (${o.note})` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {pendingMembers.length > 0 && (
+              <div className="mt-4 border-t-2 border-black pt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <p className="neo-label text-xs text-rose-700">
+                    {t.pendingList} ({pendingMembers.length} orang)
+                  </p>
+                  <TelegramPingButton
+                    dateKey={dateKey}
+                    pendingCount={pendingMembers.length}
+                  />
+                </div>
+                <ul className="mt-2.5 flex flex-wrap gap-1.5">
                   {pendingMembers.map((name) => (
                     <li
                       key={name}

@@ -35,7 +35,7 @@ export function DishPreferencesCard({
     const pref = prefByKey.get(normalizeDishKey(dish));
     if (!pref) return t.unset;
     const note = pref.note ? ` · ${pref.note}` : "";
-    return pref.wants ? `${t.follow}${note}` : `${t.swapTo(pref.swapDish ?? "")}${note}`;
+    return pref.wants ? `${t.follow}${note}` : `${t.skip}${note}`;
   }
 
   return (
@@ -86,7 +86,6 @@ function DishPreferenceEditor({
   const [removeState, removeAction, removePending] = useActionState(removeDishPreferenceAction, {});
 
   const [wants, setWants] = useState(initial?.wants !== false);
-  const [swapDish, setSwapDish] = useState(initial?.swapDish ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
 
   return (
@@ -96,6 +95,7 @@ function DishPreferenceEditor({
       <form action={saveAction} className="neo-pref-editor-form">
         <input type="hidden" name="forDish" value={forDish} />
         <input type="hidden" name="wants" value={wants ? "yes" : "no"} />
+        <input type="hidden" name="swapDish" value="" />
 
         <div className="neo-response-choices">
           <button
@@ -104,8 +104,8 @@ function DishPreferenceEditor({
             onClick={() => setWants(true)}
             aria-pressed={wants}
           >
-            <span className="neo-response-choice-main">{rt.yes}</span>
-            <span className="neo-response-choice-hint">{rt.yesHint}</span>
+            <span className="neo-response-choice-main">{t.yes}</span>
+            <span className="neo-response-choice-hint">{t.yesHint}</span>
           </button>
           <button
             type="button"
@@ -113,28 +113,10 @@ function DishPreferenceEditor({
             onClick={() => setWants(false)}
             aria-pressed={!wants}
           >
-            <span className="neo-response-choice-main">{rt.noSwap}</span>
-            <span className="neo-response-choice-hint">{rt.noSwapHint}</span>
+            <span className="neo-response-choice-main">{t.no}</span>
+            <span className="neo-response-choice-hint">{t.noHint}</span>
           </button>
         </div>
-
-        {!wants && (
-          <div className="neo-response-swap">
-            <label className="neo-response-swap-label" htmlFor={`swap-${forDish}`}>
-              {rt.swapLabel}
-            </label>
-            <Input
-              id={`swap-${forDish}`}
-              name="swapDish"
-              placeholder={rt.swapPlaceholder}
-              value={swapDish}
-              onChange={(e) => setSwapDish(e.target.value)}
-              required
-            />
-          </div>
-        )}
-
-        {wants && <input type="hidden" name="swapDish" value="" />}
 
         <div className="neo-response-notes">
           <p className="neo-response-notes-label">{rt.noteLabel}</p>

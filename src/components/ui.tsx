@@ -89,13 +89,15 @@ export function PageShell({
   title,
   children,
   nav,
+  maxWidth = "max-w-lg",
 }: {
   title: string;
   children: ReactNode;
   nav?: ReactNode;
+  maxWidth?: string;
 }) {
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-lg flex-col gap-6 p-4 pb-10">
+    <div className={`mx-auto flex min-h-full w-full ${maxWidth} flex-col gap-6 p-4 pb-10`}>
       <header className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-bold uppercase tracking-wide text-[var(--text-muted)]">

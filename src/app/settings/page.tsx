@@ -1,21 +1,16 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { getSettings, getDefaultDishes } from "@/lib/settings";
 import { id } from "@/lib/id";
 import { PageShell, Card } from "@/components/ui";
 import { AppNav } from "@/components/nav";
 import { DefaultDishesForm } from "@/components/default-dishes-form";
-import { SettingsForm, AddMemberForm, MemberRow } from "./settings-forms";
+import { SettingsForm } from "./settings-forms";
 
 export default async function SettingsPage() {
   const user = await requireAdmin();
   const [settings, defaultDishes] = await Promise.all([getSettings(), getDefaultDishes()]);
   const isSuperAdmin = user.role === "admin";
-  const members = isSuperAdmin
-    ? await db.user.findMany({
-        orderBy: { name: "asc" },
-      })
-    : [];
 
   return (
     <PageShell title={id.settings.title} nav={<AppNav role={user.role} />}>
@@ -28,20 +23,16 @@ export default async function SettingsPage() {
 
       {isSuperAdmin && (
         <Card>
-          <p className="neo-label">{id.settings.members}</p>
-          <ul className="mt-4 space-y-4">
-            {members.map((m) => (
-              <MemberRow
-                key={m.id}
-                id={m.id}
-                name={m.name}
-                role={m.role}
-                currentUserId={user.id}
-              />
-            ))}
-          </ul>
-          <div className="mt-6 border-t-2 border-black pt-4">
-            <AddMemberForm />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="neo-label">{id.users.title}</p>
+              <p className="mt-1 text-sm text-[var(--text-muted)] font-medium">
+                {id.settings.manageUsersHint}
+              </p>
+            </div>
+            <Link href="/users" className="neo-btn neo-btn-primary text-sm whitespace-nowrap">
+              {id.settings.manageUsersBtn} →
+            </Link>
           </div>
         </Card>
       )}

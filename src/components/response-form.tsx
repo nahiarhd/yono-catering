@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { id } from "@/lib/id";
 import { Button, Input, Card } from "./ui";
@@ -9,7 +10,7 @@ type State = { error?: string; ok?: boolean };
 
 type Initial = {
   wants: boolean;
-  swapDish: string | null;
+  swapDish?: string | null;
   note: string | null;
 };
 
@@ -33,13 +34,15 @@ export function ResponseForm({
   const t = id.response;
 
   const [wants, setWants] = useState(initial?.wants !== false);
-  const [swapDish, setSwapDish] = useState(initial?.swapDish ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [saveAsPreference, setSaveAsPreference] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     if (state.ok) router.refresh();
   }, [state.ok, router]);
+
+  const showPopup = Boolean(state.ok && !dismissed);
 
   if (locked) {
     return (
@@ -55,9 +58,7 @@ export function ResponseForm({
                   {t.eating}: <strong>{dish}</strong>
                 </>
               ) : (
-                <>
-                  {t.notEating}: <strong>{initial.swapDish}</strong>
-                </>
+                <strong>{t.notEating}</strong>
               )}
             </p>
             <p className="neo-response-summary-note">
@@ -80,9 +81,16 @@ export function ResponseForm({
         <p className="neo-pref-banner">{t.fromPreference(dish)}</p>
       )}
 
-      <form action={formAction} className="neo-response-form">
+      <form
+        action={(formData) => {
+          setDismissed(false);
+          formAction(formData);
+        }}
+        className="neo-response-form"
+      >
         <input type="hidden" name="dateKey" value={dateKey} />
         <input type="hidden" name="wants" value={wants ? "yes" : "no"} />
+        <input type="hidden" name="swapDish" value="" />
 
         <fieldset className="neo-response-fieldset">
           <legend className="neo-response-legend">{t.wantDish}</legend>
@@ -102,49 +110,35 @@ export function ResponseForm({
               onClick={() => setWants(false)}
               aria-pressed={!wants}
             >
-              <span className="neo-response-choice-main">{t.noSwap}</span>
-              <span className="neo-response-choice-hint">{t.noSwapHint}</span>
+              <span className="neo-response-choice-main">{t.no}</span>
+              <span className="neo-response-choice-hint">{t.noHint}</span>
             </button>
           </div>
         </fieldset>
 
-        {!wants && (
-          <div className="neo-response-swap">
-            <label className="neo-response-swap-label" htmlFor="swapDish">
-              {t.swapLabel}
-            </label>
-            <Input
-              id="swapDish"
-              name="swapDish"
-              placeholder={t.swapPlaceholder}
-              value={swapDish}
-              onChange={(e) => setSwapDish(e.target.value)}
-              required
-            />
-          </div>
-        )}
-
-        {wants && <input type="hidden" name="swapDish" value="" />}
-
         <div className="neo-response-notes">
           <p className="neo-response-notes-label">{t.noteLabel}</p>
-          <p className="neo-response-notes-quick">{t.noteQuick}</p>
-          <div className="neo-response-note-chips">
-            {t.notePresets.map((preset) => {
-              const selected = note === preset;
-              return (
-                <button
-                  key={preset}
-                  type="button"
-                  className={`neo-response-note-chip${selected ? " neo-response-note-chip--selected" : ""}`}
-                  onClick={() => toggleNotePreset(preset)}
-                  aria-pressed={selected}
-                >
-                  {preset}
-                </button>
-              );
-            })}
-          </div>
+          {wants && (
+            <>
+              <p className="neo-response-notes-quick">{t.noteQuick}</p>
+              <div className="neo-response-note-chips">
+                {t.notePresets.map((preset) => {
+                  const selected = note === preset;
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={`neo-response-note-chip${selected ? " neo-response-note-chip--selected" : ""}`}
+                      onClick={() => toggleNotePreset(preset)}
+                      aria-pressed={selected}
+                    >
+                      {preset}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
           <Input
             id="note"
             name="note"
@@ -173,6 +167,47 @@ export function ResponseForm({
           {pending ? t.saving : t.submit}
         </Button>
       </form>
+
+      {showPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setDismissed(true)}
+        >
+          <div
+            className="border-3 border-black bg-white p-5 max-w-xs sm:max-w-sm w-full shadow-[8px_8px_0px_0px_#000] text-center flex flex-col items-center gap-3 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative w-52 h-52 sm:w-60 sm:h-60 overflow-hidden border-2 border-black bg-amber-50 shadow-[3px_3px_0px_0px_#000]">
+              <Image
+                src="/yono-makasih.png"
+                alt="Pak Yono Makasih"
+                fill
+                sizes="(max-width: 640px) 208px, 240px"
+                className="object-contain"
+                priority
+              />
+            </div>
+            <div className="px-1">
+              <h3 className="neo-title text-xl">Jawaban Tersimpan!</h3>
+              <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">
+                {wants
+                  ? `Pak Yono siap masakin ${dish} buat kamu!`
+                  : "Oke, pilihanmu buat lewati makan hari ini udah dicatet Pak Yono!"}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => setDismissed(true)}
+              className="w-full mt-2 py-3 text-base font-black shadow-[4px_4px_0px_0px_#000]"
+            >
+              Siap, Makasih Pak Yono!
+            </Button>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

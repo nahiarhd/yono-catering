@@ -14,9 +14,8 @@ export type ActionState = { error?: string; ok?: boolean };
 function parsePreferenceFields(formData: FormData) {
   const wantsRaw = String(formData.get("wants") ?? "yes");
   const wants = wantsRaw === "yes";
-  const swapDish = String(formData.get("swapDish") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim() || null;
-  return { wants, swapDish, note };
+  return { wants, swapDish: null, note };
 }
 
 export async function submitResponseAction(
@@ -25,11 +24,10 @@ export async function submitResponseAction(
 ): Promise<ActionState> {
   const user = await requireUser();
   const dateKey = String(formData.get("dateKey") ?? "");
-  const { wants, swapDish, note } = parsePreferenceFields(formData);
+  const { wants, note } = parsePreferenceFields(formData);
   const saveAsPreference = String(formData.get("saveAsPreference") ?? "") === "yes";
 
   if (!dateKey || dateKey < todayKey()) return { error: id.errors.missingDay };
-  if (!wants && !swapDish) return { error: id.errors.swapRequired };
 
   const { menu, locked } = await getMenuDay(dateKey);
   if (!menu) return { error: id.errors.noMenu };
@@ -41,18 +39,18 @@ export async function submitResponseAction(
       menuId: menu.id,
       userId: user.id,
       wants,
-      swapDish: wants ? null : swapDish,
+      swapDish: null,
       note,
     },
     update: {
       wants,
-      swapDish: wants ? null : swapDish,
+      swapDish: null,
       note,
     },
   });
 
   if (saveAsPreference) {
-    await upsertDishPreference(user.id, menu.dish, { wants, swapDish, note });
+    await upsertDishPreference(user.id, menu.dish, { wants, swapDish: null, note });
   }
 
   revalidatePath("/home");
@@ -65,12 +63,11 @@ export async function saveDishPreferenceAction(
 ): Promise<ActionState> {
   const user = await requireUser();
   const forDish = String(formData.get("forDish") ?? "").trim();
-  const { wants, swapDish, note } = parsePreferenceFields(formData);
+  const { wants, note } = parsePreferenceFields(formData);
 
   if (!forDish) return { error: id.errors.dishRequired };
-  if (!wants && !swapDish) return { error: id.errors.swapRequired };
 
-  await upsertDishPreference(user.id, forDish, { wants, swapDish, note });
+  await upsertDishPreference(user.id, forDish, { wants, swapDish: null, note });
 
   revalidatePath("/home");
   revalidatePath("/preferences");

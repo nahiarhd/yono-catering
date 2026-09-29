@@ -19,6 +19,7 @@ model User {
   name             String           @unique
   pinHash          String
   role             Role
+  telegramChatId   String?
   pushSubscription Json?
   createdAt        DateTime         @default(now())
   responses        Response[]

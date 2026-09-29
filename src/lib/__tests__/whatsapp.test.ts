@@ -5,29 +5,27 @@ function testAllAnswered() {
   const msg = buildWhatsAppMessage({
     dateDisplay: "Kamis, 24 September 2026",
     dish: "Ayam Bakar Madu",
-    note: "Pilihan ganti: Telur Balado",
+    note: "Porsi ekstra sambal",
     cutoff: "08:00",
-    breakdown: [
-      { dish: "Ayam Bakar Madu", count: 2 },
-      { dish: "Telur Balado", count: 1 },
-    ],
-    totalPortions: 3,
+    breakdown: [{ dish: "Ayam Bakar Madu", count: 2 }],
+    totalPortions: 2,
     orders: [
-      { name: "Raihan", dish: "Ayam Bakar Madu", isSwap: false, note: "Porsi banyak" },
-      { name: "Iqbal", dish: "Telur Balado", isSwap: true, note: "Sambal pisah" },
-      { name: "Pak Yono", dish: "Ayam Bakar Madu", isSwap: false, note: null },
+      { name: "Raihan", wants: true, note: "Porsi banyak" },
+      { name: "Iqbal", wants: false, note: "Bawa bekal" },
+      { name: "Pak Yono", wants: true, note: null },
     ],
     pendingMembers: [],
   });
 
   assert.ok(msg.includes("*REKAP KATERING PAK YONO*"));
   assert.ok(msg.includes("Menu Utama: *Ayam Bakar Madu*"));
-  assert.ok(msg.includes("Catatan Menu: Pilihan ganti: Telur Balado"));
+  assert.ok(msg.includes("Catatan Menu: Porsi ekstra sambal"));
   assert.ok(msg.includes("• Ayam Bakar Madu: 2 porsi"));
-  assert.ok(msg.includes("• Telur Balado: 1 porsi"));
-  assert.ok(msg.includes("*Total: 3 porsi*"));
-  assert.ok(msg.includes("1. Raihan: Ayam Bakar Madu [Catatan: Porsi banyak]"));
-  assert.ok(msg.includes("2. Iqbal: Telur Balado (Ganti) [Catatan: Sambal pisah]"));
+  assert.ok(msg.includes("*Total: 2 porsi*"));
+  assert.ok(msg.includes("1. Raihan [Catatan: Porsi banyak]"));
+  assert.ok(msg.includes("2. Pak Yono"));
+  assert.ok(msg.includes("*TIDAK IKUT MAKAN (1 orang):*"));
+  assert.ok(msg.includes("• Iqbal [Catatan: Bawa bekal]"));
   assert.ok(!msg.includes("BELUM MEMILIH"));
   assert.ok(!msg.includes("—"), "Must not contain em dash");
 
@@ -67,7 +65,7 @@ function testEmptyOrders() {
   });
 
   assert.ok(msg.includes("Belum ada pesanan masuk"));
-  assert.ok(msg.includes("(Belum ada anggota yang memilih)"));
+  assert.ok(msg.includes("(Belum ada yang ikut makan)"));
   assert.ok(msg.includes("*BELUM MEMILIH (2 orang):*"));
   assert.ok(!msg.includes("—"), "Must not contain em dash");
 }

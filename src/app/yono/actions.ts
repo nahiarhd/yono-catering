@@ -9,6 +9,14 @@ import { getSettings } from "@/lib/settings";
 import { todayKey } from "@/lib/dates";
 import { id } from "@/lib/id";
 
+import {
+  getAppUrl,
+  formatMenuBroadcastMessage,
+  formatReminderMessage,
+  sendTelegramBroadcast,
+  sendTelegramMessage,
+} from "@/lib/telegram";
+
 export type ActionState = { error?: string; ok?: boolean };
 
 export async function postMenuAction(
@@ -42,15 +50,91 @@ export async function postMenuAction(
     const cutoff = effectiveCutoff(settings.standingCutoff, cutoffOverride);
     const members = await db.user.findMany({
       where: { role: { not: "yono" } },
-      select: { id: true },
+      select: { id: true, telegramChatId: true },
     });
     await sendPush(members.map((m) => m.id), {
       title: id.push.menuTitle,
       body: id.push.menuBody(dish, cutoff),
       url: "/home",
     });
+
+    const telegramChatIds = members
+      .map((m) => m.telegramChatId)
+      .filter((cid): cid is string => Boolean(cid && cid.trim()));
+
+    if (telegramChatIds.length > 0) {
+      try {
+        const broadcastText = formatMenuBroadcastMessage({
+          dish,
+          cutoff,
+          note: menuNote,
+          appUrl: getAppUrl(),
+        });
+        await sendTelegramBroadcast(telegramChatIds, broadcastText);
+      } catch (err) {
+        console.error("Gagal mengirim broadcast Telegram:", err);
+      }
+    }
   }
 
   void menu;
   return { ok: true };
+}
+
+export async function pingTelegramRemindersAction(
+  dateKey: string
+): Promise<{ ok: boolean; count?: number; error?: string }> {
+  await requireYono();
+
+  const { menu, settings } = await getMenuDay(dateKey);
+  if (!menu) {
+    return { ok: false, error: id.errors.noMenu };
+  }
+
+  const cutoff = effectiveCutoff(settings.standingCutoff, menu.cutoffOverride);
+  const appUrl = getAppUrl();
+
+  const nonYonoResponses = menu.responses.filter((r) => r.user.role !== "yono");
+  const respondedUserIds = new Set(nonYonoResponses.map((r) => r.userId));
+
+  const pendingMembers = await db.user.findMany({
+    where: {
+      role: { not: "yono" },
+      id: { notIn: Array.from(respondedUserIds) },
+      telegramChatId: { not: null },
+    },
+    select: { id: true, name: true, telegramChatId: true },
+  });
+
+  const validMembers = pendingMembers.filter(
+    (m) => m.telegramChatId && m.telegramChatId.trim().length > 0
+  );
+
+  if (validMembers.length === 0) {
+    return {
+      ok: false,
+      error: id.yono.pingTelegramEmpty,
+    };
+  }
+
+  const results = await Promise.allSettled(
+    validMembers.map((m) => {
+      const text = formatReminderMessage({
+        name: m.name,
+        dish: menu.dish,
+        cutoff,
+        appUrl,
+      });
+      return sendTelegramMessage(m.telegramChatId!, text);
+    })
+  );
+
+  let sent = 0;
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value.ok) {
+      sent++;
+    }
+  }
+
+  return { ok: true, count: sent };
 }

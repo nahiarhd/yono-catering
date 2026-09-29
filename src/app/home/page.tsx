@@ -62,7 +62,7 @@ export default async function MemberHomePage({
               <div className="neo-response-status mt-3">
                 <p className="neo-response-status-label">{t.yourStatus}</p>
                 <p className="neo-response-status-value">
-                  {myResponse.wants ? menu.dish : myResponse.swapDish}
+                  {myResponse.wants ? `${id.response.eating}: ${menu.dish}` : id.response.notEating}
                   {myResponse.note ? ` · ${myResponse.note}` : ""}
                 </p>
               </div>

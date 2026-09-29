@@ -12,6 +12,18 @@ export const metadata: Metadata = {
   title: id.app.name,
   description: id.app.description,
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/yono.jpg" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/yono.jpg" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/yono.jpg",
+  },
   appleWebApp: {
     capable: true,
     title: id.app.name,

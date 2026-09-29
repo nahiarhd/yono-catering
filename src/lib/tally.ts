@@ -8,21 +8,22 @@ type ResponseRow = {
 };
 
 export function buildTally(menuDish: string, responses: ResponseRow[]) {
-  const counts = new Map<string, number>();
+  const eating = responses.filter((r) => r.wants);
+  const notEating = responses.filter((r) => !r.wants);
   const notes: { name: string; note: string }[] = [];
 
-  for (const r of responses) {
-    const dish = r.wants ? menuDish : (r.swapDish?.trim() || id.tally.swap);
-    counts.set(dish, (counts.get(dish) ?? 0) + 1);
+  for (const r of eating) {
     if (r.note?.trim()) notes.push({ name: r.user.name, note: r.note.trim() });
   }
 
-  const breakdown = [...counts.entries()].map(([dish, count]) => ({ dish, count }));
+  const breakdown = eating.length > 0 ? [{ dish: menuDish, count: eating.length }] : [];
   const parts = breakdown.map(({ dish, count }) => id.tally.portion(count, dish));
   return {
     summary: parts.join(", ") || id.tally.empty,
     breakdown,
-    total: responses.length,
+    total: eating.length,
+    eatingCount: eating.length,
+    notEatingCount: notEating.length,
     notes,
   };
 }
