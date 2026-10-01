@@ -43,6 +43,10 @@ export function DishPreferencesCard({
     const name = typeof d === "string" ? d : d.name;
     return name === active;
   });
+  const activeWarung =
+    activeDishObj && typeof activeDishObj !== "string"
+      ? activeDishObj.warung ?? null
+      : null;
   const activeSubDishes =
     activeDishObj && typeof activeDishObj !== "string"
       ? activeDishObj.subDishes ?? []
@@ -57,6 +61,8 @@ export function DishPreferencesCard({
         {dishNames.map((dish) => {
           const selected = dish === active;
           const hasPref = prefByKey.has(normalizeDishKey(dish));
+          const dishObj = dishes.find((d) => (typeof d === "string" ? d : d.name) === dish);
+          const warung = dishObj && typeof dishObj !== "string" ? dishObj.warung : null;
           return (
             <button
               key={dish}
@@ -65,6 +71,11 @@ export function DishPreferencesCard({
               onClick={() => setActive(dish)}
               aria-pressed={selected}
             >
+              {warung && (
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block truncate">
+                  {warung}
+                </span>
+              )}
               <span className="neo-dish-chip-name">{dish}</span>
               <span className="neo-dish-chip-sub">{summary(dish)}</span>
             </button>
@@ -76,6 +87,7 @@ export function DishPreferencesCard({
         <DishPreferenceEditor
           key={active}
           forDish={active}
+          warung={activeWarung}
           subDishes={activeSubDishes}
           initial={prefByKey.get(normalizeDishKey(active))}
         />
@@ -86,10 +98,12 @@ export function DishPreferencesCard({
 
 function DishPreferenceEditor({
   forDish,
+  warung,
   subDishes = [],
   initial,
 }: {
   forDish: string;
+  warung?: string | null;
   subDishes?: string[];
   initial?: Pref;
 }) {
@@ -104,6 +118,11 @@ function DishPreferenceEditor({
 
   return (
     <div className="neo-pref-editor">
+      {warung && (
+        <span className="text-[11px] font-black uppercase tracking-wider bg-amber-200 border border-black px-1.5 py-0.5 shadow-[1px_1px_0px_#000] mb-1.5 inline-block">
+          {warung}
+        </span>
+      )}
       <p className="neo-pref-editor-title">{t.forDish(forDish)}</p>
 
       <form action={saveAction} className="neo-pref-editor-form">

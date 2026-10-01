@@ -69,12 +69,14 @@ function DefaultDishRow({
   return (
     <li className="neo-dish-list-item flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3">
       <div className="flex-1 min-w-0">
-        <span className="neo-dish-list-label font-black text-base">{dish.name}</span>
-        {dish.note && (
-          <p className="text-xs font-semibold text-[var(--text-muted)] mt-1">
-            {t.dishNotePrefix} {dish.note}
-          </p>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {dish.warung && (
+            <span className="text-[11px] font-black uppercase tracking-wider bg-amber-200 border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]">
+              {dish.warung}
+            </span>
+          )}
+          <span className="neo-dish-list-label font-black text-base">{dish.name}</span>
+        </div>
         {dish.subDishes && dish.subDishes.length > 0 && (
           <div className="flex flex-wrap items-center gap-1 mt-1.5">
             <span className="text-[11px] font-bold text-[var(--text-muted)] mr-1">
@@ -89,6 +91,11 @@ function DefaultDishRow({
               </span>
             ))}
           </div>
+        )}
+        {dish.note && (
+          <p className="text-xs font-semibold text-[var(--text-muted)] mt-1">
+            {t.dishNotePrefix} {dish.note}
+          </p>
         )}
       </div>
       <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
@@ -149,6 +156,21 @@ function EditDefaultDishForm({
 
       <div>
         <label
+          htmlFor={`edit-warung-${dish.name}`}
+          className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1"
+        >
+          {t.dishWarung}
+        </label>
+        <Input
+          id={`edit-warung-${dish.name}`}
+          name="warung"
+          defaultValue={dish.warung ?? ""}
+          placeholder={t.dishWarungPlaceholder}
+        />
+      </div>
+
+      <div>
+        <label
           htmlFor={`edit-dish-${dish.name}`}
           className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1"
         >
@@ -158,22 +180,8 @@ function EditDefaultDishForm({
           id={`edit-dish-${dish.name}`}
           name="dish"
           defaultValue={dish.name}
+          placeholder={t.dishNamePlaceholder}
           required
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor={`edit-note-${dish.name}`}
-          className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1"
-        >
-          {t.dishNote}
-        </label>
-        <Input
-          id={`edit-note-${dish.name}`}
-          name="note"
-          defaultValue={dish.note ?? ""}
-          placeholder={t.dishNotePlaceholder}
         />
       </div>
 
@@ -189,6 +197,21 @@ function EditDefaultDishForm({
           name="subDishes"
           defaultValue={subDishesValue}
           placeholder={t.dishSubDishesPlaceholder}
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor={`edit-note-${dish.name}`}
+          className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1"
+        >
+          {t.dishNote}
+        </label>
+        <Input
+          id={`edit-note-${dish.name}`}
+          name="note"
+          defaultValue={dish.note ?? ""}
+          placeholder={t.dishNotePlaceholder}
         />
       </div>
 
@@ -224,22 +247,28 @@ function AddDefaultDishForm() {
     <form action={action} className="mt-4 flex flex-col gap-3 border-t-2 border-black pt-4">
       <p className="neo-label">{t.addDish}</p>
       <div>
+        <label htmlFor="dishWarungInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
+          {t.dishWarung}
+        </label>
+        <Input id="dishWarungInput" name="warung" placeholder={t.dishWarungPlaceholder} />
+      </div>
+      <div>
         <label htmlFor="dishNameInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
           {t.dishName}
         </label>
-        <Input id="dishNameInput" name="dish" placeholder={t.dishName} required />
-      </div>
-      <div>
-        <label htmlFor="dishNoteInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
-          {t.dishNote}
-        </label>
-        <Input id="dishNoteInput" name="note" placeholder={t.dishNotePlaceholder} />
+        <Input id="dishNameInput" name="dish" placeholder={t.dishNamePlaceholder} required />
       </div>
       <div>
         <label htmlFor="dishSubDishesInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
           {t.dishSubDishes}
         </label>
         <Input id="dishSubDishesInput" name="subDishes" placeholder={t.dishSubDishesPlaceholder} />
+      </div>
+      <div>
+        <label htmlFor="dishNoteInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
+          {t.dishNote}
+        </label>
+        <Input id="dishNoteInput" name="note" placeholder={t.dishNotePlaceholder} />
       </div>
       {state.error && <p className="font-bold text-[var(--danger)]">{state.error}</p>}
       {state.ok && <p className="font-bold text-[var(--success)]">{t.dishAdded}</p>}

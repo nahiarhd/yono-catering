@@ -162,6 +162,15 @@ export function YonoSlideDashboard({
                         }`}
                         aria-pressed={isSelected}
                       >
+                        {preset.warung && (
+                          <span
+                            className={`text-[10px] font-black uppercase tracking-wider block mb-0.5 truncate ${
+                              isSelected ? "text-amber-300" : "text-amber-800"
+                            }`}
+                          >
+                            {preset.warung}
+                          </span>
+                        )}
                         <div className="flex items-center justify-between gap-1">
                           <span className="font-black text-sm sm:text-base leading-tight">
                             {preset.name}

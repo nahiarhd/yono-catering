@@ -1,4 +1,5 @@
 export type DefaultDish = {
+  warung?: string | null;
   name: string;
   note?: string | null;
   subDishes?: string[];
@@ -57,7 +58,7 @@ export function parseDefaultDishes(value: unknown): DefaultDish[] {
       const key = normalizeDishKey(name);
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ name, note: null, subDishes: [] });
+      out.push({ warung: null, name, note: null, subDishes: [] });
     } else if (
       item &&
       typeof item === "object" &&
@@ -69,11 +70,13 @@ export function parseDefaultDishes(value: unknown): DefaultDish[] {
       const key = normalizeDishKey(name);
       if (seen.has(key)) continue;
       seen.add(key);
+      const rawWarung = (item as { warung?: unknown }).warung;
+      const warung = typeof rawWarung === "string" ? rawWarung.trim() || null : null;
       const rawNote = (item as { note?: unknown }).note;
       const note = typeof rawNote === "string" ? rawNote.trim() || null : null;
       const rawSub = (item as { subDishes?: unknown }).subDishes;
       const subDishes = parseSubDishes(rawSub);
-      out.push({ name, note, subDishes });
+      out.push({ warung, name, note, subDishes });
     }
   }
   return out;

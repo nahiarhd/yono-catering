@@ -145,6 +145,7 @@ export async function addDefaultDishAction(
 ): Promise<ActionState> {
   await requireAdmin();
 
+  const warung = String(formData.get("warung") ?? "").trim() || null;
   const dish = String(formData.get("dish") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim() || null;
   const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
@@ -161,7 +162,7 @@ export async function addDefaultDishAction(
 
   await db.settings.update({
     where: { id: "singleton" },
-    data: { defaultDishes: [...dishes, { name: dish, note, subDishes }] },
+    data: { defaultDishes: [...dishes, { warung, name: dish, note, subDishes }] },
   });
 
   revalidatePath("/settings");
@@ -178,6 +179,7 @@ export async function updateDefaultDishAction(
   await requireAdmin();
 
   const originalDish = String(formData.get("originalDish") ?? "").trim();
+  const warung = String(formData.get("warung") ?? "").trim() || null;
   const dish = String(formData.get("dish") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim() || null;
   const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
@@ -203,7 +205,7 @@ export async function updateDefaultDishAction(
   }
 
   const nextDishes = [...dishes];
-  nextDishes[targetIndex] = { name: dish, note, subDishes };
+  nextDishes[targetIndex] = { warung, name: dish, note, subDishes };
 
   await db.settings.update({
     where: { id: "singleton" },

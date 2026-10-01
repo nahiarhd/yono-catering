@@ -5,7 +5,6 @@ import { id } from "@/lib/id";
 import { PageShell, Card } from "@/components/ui";
 import { AppNav } from "@/components/nav";
 import { DishPreferencesCard } from "@/components/dish-preferences-card";
-import { UpdatePinCard } from "@/components/update-pin-card";
 
 export default async function PreferencesPage() {
   const user = await requireUser();
@@ -32,9 +31,6 @@ export default async function PreferencesPage() {
           </p>
         </Card>
       )}
-
-      {/* Ubah PIN Akun Pengguna */}
-      <UpdatePinCard />
     </PageShell>
   );
 }
