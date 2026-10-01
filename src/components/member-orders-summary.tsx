@@ -3,6 +3,7 @@ import { Card } from "@/components/ui";
 export interface MemberOrder {
   name: string;
   dish?: string;
+  addOns?: string | null;
   note?: string | null;
 }
 
@@ -13,6 +14,7 @@ export interface MemberOrdersSummaryProps {
   notEatingOrders: MemberOrder[];
   pendingMembers: string[];
   breakdown: { dish: string; count: number }[];
+  addOnBreakdown?: { name: string; count: number; users: string[] }[];
   totalPortions: number;
 }
 
@@ -23,6 +25,7 @@ export function MemberOrdersSummary({
   notEatingOrders,
   pendingMembers,
   breakdown,
+  addOnBreakdown,
   totalPortions,
 }: MemberOrdersSummaryProps) {
   const answeredCount = eatingOrders.length + notEatingOrders.length;
@@ -102,6 +105,26 @@ export function MemberOrdersSummary({
         </div>
       )}
 
+      {/* Rincian Add-on Katering */}
+      {addOnBreakdown && addOnBreakdown.length > 0 && (
+        <div>
+          <p className="neo-label text-xs">Tambahan / Add-on Dipesan</p>
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {addOnBreakdown.map((item) => (
+              <div
+                key={item.name}
+                className="border-2 border-black bg-emerald-50 p-2 flex justify-between items-center text-xs font-bold"
+              >
+                <span>+ {item.name}</span>
+                <span className="border-2 border-black bg-emerald-300 px-2 py-0.5 font-black">
+                  {item.count} porsi
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Daftar Ikut Makan */}
       <div>
         <p className="neo-label text-xs">
@@ -118,11 +141,18 @@ export function MemberOrdersSummary({
                   <span className="font-extrabold text-sm">
                     {idx + 1}. {o.name}
                   </span>
-                  {o.dish && o.dish !== mainDish && (
-                    <span className="text-[11px] border border-black px-1.5 py-0.5 font-bold bg-amber-100">
-                      {o.dish}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {o.dish && o.dish !== mainDish && (
+                      <span className="text-[11px] border border-black px-1.5 py-0.5 font-bold bg-amber-100">
+                        {o.dish}
+                      </span>
+                    )}
+                    {o.addOns && (
+                      <span className="text-[11px] border border-black px-1.5 py-0.5 font-bold bg-emerald-100">
+                        + {o.addOns}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {o.note && (
                   <p className="text-[11px] text-[var(--text-muted)] italic">

@@ -5,7 +5,8 @@ import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin, requireStrictAdmin, requireUser, verifyPin, hashPin } from "@/lib/auth";
 import { parseHHMM } from "@/lib/cutoff";
-import { normalizeDishKey, parseDefaultDishes, parseSubDishes } from "@/lib/dishes";
+import { normalizeDishKey, parseDefaultDishes, parseSubDishes, formatSubDishes } from "@/lib/dishes";
+import { todayKey, parseDateKey } from "@/lib/dates";
 import { getSettings } from "@/lib/settings";
 import { id } from "@/lib/id";
 
@@ -68,7 +69,16 @@ export async function updateSettingsAction(
     update: { standingCutoff, reminderTime },
   });
 
+  // Sinkronkan menu aktif hari ini dan ke depan agar langsung mengikuti batas waktu baru
+  const today = parseDateKey(todayKey());
+  await db.menu.updateMany({
+    where: { date: { gte: today } },
+    data: { cutoffOverride: null },
+  });
+
   revalidatePath("/settings");
+  revalidatePath("/home");
+  revalidatePath("/yono");
   return { ok: true };
 }
 
@@ -150,6 +160,8 @@ export async function addDefaultDishAction(
   const note = String(formData.get("note") ?? "").trim() || null;
   const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
   const subDishes = parseSubDishes(subDishesRaw);
+  const addOnsRaw = String(formData.get("addOns") ?? "").trim();
+  const addOns = parseSubDishes(addOnsRaw);
 
   if (!dish) return { error: id.errors.dishRequired };
 
@@ -162,7 +174,7 @@ export async function addDefaultDishAction(
 
   await db.settings.update({
     where: { id: "singleton" },
-    data: { defaultDishes: [...dishes, { warung, name: dish, note, subDishes }] },
+    data: { defaultDishes: [...dishes, { warung, name: dish, note, subDishes, addOns }] },
   });
 
   revalidatePath("/settings");
@@ -184,6 +196,8 @@ export async function updateDefaultDishAction(
   const note = String(formData.get("note") ?? "").trim() || null;
   const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
   const subDishes = parseSubDishes(subDishesRaw);
+  const addOnsRaw = String(formData.get("addOns") ?? "").trim();
+  const addOns = parseSubDishes(addOnsRaw);
 
   if (!originalDish || !dish) return { error: id.errors.dishRequired };
 
@@ -205,7 +219,7 @@ export async function updateDefaultDishAction(
   }
 
   const nextDishes = [...dishes];
-  nextDishes[targetIndex] = { warung, name: dish, note, subDishes };
+  nextDishes[targetIndex] = { warung, name: dish, note, subDishes, addOns };
 
   await db.settings.update({
     where: { id: "singleton" },
@@ -217,6 +231,31 @@ export async function updateDefaultDishAction(
       where: { forDish: origKey },
       data: { forDish: newKey },
     });
+  }
+
+  // Synchronize today's posted menu if it matches the dish/warung being updated
+  const today = todayKey();
+  const todayDate = parseDateKey(today);
+  const currentMenu = await db.menu.findUnique({ where: { date: todayDate } });
+  if (currentMenu) {
+    const currentDishNorm = normalizeDishKey(currentMenu.dish);
+    const origWarung = dishes[targetIndex].warung;
+    const matchesOrig = currentDishNorm === origKey;
+    const matchesNew = currentDishNorm === newKey;
+    const matchesWarung = warung && currentDishNorm === normalizeDishKey(warung);
+    const matchesOrigWarung = origWarung && currentDishNorm === normalizeDishKey(origWarung);
+
+    if (matchesOrig || matchesNew || matchesWarung || matchesOrigWarung) {
+      await db.menu.update({
+        where: { date: todayDate },
+        data: {
+          dish,
+          subDishes: subDishes.length > 0 ? formatSubDishes(subDishes) : null,
+          addOns: addOns.length > 0 ? formatSubDishes(addOns) : null,
+          note,
+        },
+      });
+    }
   }
 
   revalidatePath("/settings");
@@ -252,4 +291,37 @@ export async function removeDefaultDishAction(
   revalidatePath("/home");
   revalidatePath("/preferences");
   return { ok: true };
+}
+
+export async function testTelegramReminderAction(): Promise<ActionState> {
+  await requireAdmin();
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    return {
+      ok: false,
+      error: "TELEGRAM_BOT_TOKEN belum diset di file .env. Silakan atur token bot terlebih dahulu.",
+    };
+  }
+
+  const { checkAndSendReminders } = await import("@/lib/reminder-service");
+  const result = await checkAndSendReminders({ force: true });
+
+  revalidatePath("/settings");
+  revalidatePath("/yono");
+
+  if (!result.triggered && result.reason) {
+    return { ok: false, error: result.reason };
+  }
+
+  if (result.sentCount === 0 && result.totalPending && result.totalPending > 0) {
+    return {
+      ok: false,
+      error: `Ada ${result.totalPending} anggota belum merespons, namun tidak ada yang memiliki Telegram Chat ID terdaftar di halaman Pengguna.`,
+    };
+  }
+
+  return {
+    ok: true,
+    message: `Pengingat berhasil diproses. Terkirim ke ${result.sentCount ?? 0} orang (Gagal: ${result.failedCount ?? 0}).`,
+  };
 }

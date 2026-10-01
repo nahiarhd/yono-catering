@@ -8,7 +8,7 @@ import {
 } from "@/app/home/actions";
 import { normalizeDishKey, type DefaultDish } from "@/lib/dishes";
 import { id } from "@/lib/id";
-import { Button, Input, Card } from "./ui";
+import { Button, Card } from "./ui";
 
 type Pref = {
   forDish: string;
@@ -108,13 +108,11 @@ function DishPreferenceEditor({
   initial?: Pref;
 }) {
   const t = id.preferences;
-  const rt = id.response;
   const [saveState, saveAction, savePending] = useActionState(saveDishPreferenceAction, {});
   const [removeState, removeAction, removePending] = useActionState(removeDishPreferenceAction, {});
 
   const [wants, setWants] = useState(initial?.wants !== false);
   const [subDish, setSubDish] = useState(initial?.swapDish ?? "");
-  const [note, setNote] = useState(initial?.note ?? "");
 
   return (
     <div className="neo-pref-editor">
@@ -177,31 +175,7 @@ function DishPreferenceEditor({
           </div>
         )}
 
-        <div className="neo-response-notes">
-          <p className="neo-response-notes-label">{rt.noteLabel}</p>
-          <div className="neo-response-note-chips">
-            {rt.notePresets.map((preset) => {
-              const selected = note === preset;
-              return (
-                <button
-                  key={preset}
-                  type="button"
-                  className={`neo-response-note-chip${selected ? " neo-response-note-chip--selected" : ""}`}
-                  onClick={() => setNote((c) => (c === preset ? "" : preset))}
-                  aria-pressed={selected}
-                >
-                  {preset}
-                </button>
-              );
-            })}
-          </div>
-          <Input
-            name="note"
-            placeholder={rt.notePlaceholder}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
+        <input type="hidden" name="note" value="" />
 
         <ActionMessage state={saveState} ok={t.saved} />
         <Button type="submit" variant="primary" disabled={savePending} className="w-full">

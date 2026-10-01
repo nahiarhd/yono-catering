@@ -3,14 +3,16 @@
 import { useActionState, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { parseSubDishes } from "@/lib/dishes";
 import { id } from "@/lib/id";
-import { Button, Input, Card } from "./ui";
+import { Button, Card } from "./ui";
 
 type State = { error?: string; ok?: boolean };
 
 type Initial = {
   wants: boolean;
   swapDish?: string | null;
+  addOns?: string | null;
   note: string | null;
 };
 
@@ -19,7 +21,9 @@ export function ResponseForm({
   locked,
   dateKey,
   dish,
+  dishOptions = [],
   subDishes = [],
+  addOns = [],
   initial,
   prefilledFromPreference,
 }: {
@@ -27,7 +31,9 @@ export function ResponseForm({
   locked: boolean;
   dateKey: string;
   dish: string;
+  dishOptions?: string[];
   subDishes?: string[];
+  addOns?: string[];
   initial?: Initial;
   prefilledFromPreference?: boolean;
 }) {
@@ -35,19 +41,70 @@ export function ResponseForm({
   const [state, formAction, pending] = useActionState(action, {});
   const t = id.response;
 
+  const parsedDishes = dishOptions.length > 0 ? dishOptions : parseSubDishes(dish);
+  const isMultiDish = parsedDishes.length > 1;
+
+  const initialParts = (() => {
+    const raw = initial?.swapDish?.trim() ?? "";
+    if (!raw) {
+      return {
+        dish: parsedDishes.length === 1 ? parsedDishes[0] : "",
+        variant: subDishes.length === 1 ? subDishes[0] : "",
+      };
+    }
+    const match = raw.match(/^(.+?)\s*\((.+?)\)$/);
+    if (match) {
+      const d = match[1].trim();
+      const v = match[2].trim();
+      if (parsedDishes.some((item) => item.toLowerCase() === d.toLowerCase())) {
+        return { dish: d, variant: v };
+      }
+    }
+    const matchingDish = parsedDishes.find((item) => item.toLowerCase() === raw.toLowerCase());
+    if (matchingDish) {
+      return { dish: matchingDish, variant: subDishes.length === 1 ? subDishes[0] : "" };
+    }
+    const matchingVariant = subDishes.find((item) => item.toLowerCase() === raw.toLowerCase());
+    if (matchingVariant) {
+      return { dish: parsedDishes.length === 1 ? parsedDishes[0] : "", variant: matchingVariant };
+    }
+    return { dish: raw, variant: "" };
+  })();
+
   const [wants, setWants] = useState(initial?.wants !== false);
-  const [subDish, setSubDish] = useState(
-    initial?.swapDish ?? (subDishes.length === 1 ? subDishes[0] : "")
+  const [selectedDish, setSelectedDish] = useState(initialParts.dish);
+  const [selectedVariant, setSelectedVariant] = useState(initialParts.variant);
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>(
+    initial?.addOns ? parseSubDishes(initial.addOns) : []
   );
-  const [note, setNote] = useState(initial?.note ?? "");
   const [saveAsPreference, setSaveAsPreference] = useState(true);
   const [dismissed, setDismissed] = useState(false);
+
+  function toggleAddOn(addon: string) {
+    setSelectedAddOns((prev) =>
+      prev.includes(addon)
+        ? prev.filter((a) => a !== addon)
+        : [...prev, addon]
+    );
+  }
 
   useEffect(() => {
     if (state.ok) router.refresh();
   }, [state.ok, router]);
 
   const showPopup = Boolean(state.ok && !dismissed);
+
+  const computedSubDish = (() => {
+    if (isMultiDish) {
+      if (!selectedDish) return "";
+      return selectedVariant ? `${selectedDish} (${selectedVariant})` : selectedDish;
+    }
+    return selectedVariant || selectedDish || "";
+  })();
+
+  const isMissingDish = wants && isMultiDish && !selectedDish;
+  const isMissingVariant = wants && subDishes.length > 0 && !selectedVariant;
+  const isFormIncomplete = isMissingDish || isMissingVariant;
 
   if (locked) {
     return (
@@ -60,10 +117,10 @@ export function ResponseForm({
             <p className="neo-response-summary-value">
               {initial.wants ? (
                 <>
-                  {t.eating}: <strong>{dish}</strong>
-                  {initial.swapDish && (
-                    <span className="ml-1.5 inline-block text-xs border-2 border-black bg-amber-100 px-2 py-0.5 font-black uppercase">
-                      {initial.swapDish}
+                  {t.eating}: <strong>{initial.swapDish || dish}</strong>
+                  {initial.addOns && (
+                    <span className="ml-1.5 inline-block text-xs border border-black bg-emerald-100 px-2 py-0.5 font-bold">
+                      + {initial.addOns}
                     </span>
                   )}
                 </>
@@ -71,21 +128,14 @@ export function ResponseForm({
                 <strong>{t.notEating}</strong>
               )}
             </p>
-            <p className="neo-response-summary-note">
-              {initial.note?.trim() ? initial.note : t.noNote}
-            </p>
+            {initial.note?.trim() && (
+              <p className="neo-response-summary-note">{initial.note}</p>
+            )}
           </div>
         )}
       </Card>
     );
   }
-
-  function toggleNotePreset(preset: string) {
-    setNote((current) => (current === preset ? "" : preset));
-  }
-
-  const isSubDishRequired = wants && subDishes.length > 0;
-  const isMissingSubDish = isSubDishRequired && !subDish;
 
   return (
     <Card className="neo-response-card">
@@ -103,7 +153,10 @@ export function ResponseForm({
       >
         <input type="hidden" name="dateKey" value={dateKey} />
         <input type="hidden" name="wants" value={wants ? "yes" : "no"} />
-        <input type="hidden" name="subDish" value={wants ? subDish : ""} />
+        <input type="hidden" name="subDish" value={wants ? computedSubDish : ""} />
+        <input type="hidden" name="selectedDish" value={wants ? selectedDish : ""} />
+        <input type="hidden" name="selectedVariant" value={wants ? selectedVariant : ""} />
+        <input type="hidden" name="addOns" value={wants ? selectedAddOns.join(", ") : ""} />
 
         <fieldset className="neo-response-fieldset">
           <legend className="neo-response-legend">{t.wantDish}</legend>
@@ -129,6 +182,39 @@ export function ResponseForm({
           </div>
         </fieldset>
 
+        {wants && isMultiDish && (
+          <fieldset className="neo-response-fieldset">
+            <legend className="neo-response-legend">
+              Pilih Menu Masakan <span className="text-rose-600 font-black">*</span>
+            </legend>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {parsedDishes.map((opt) => {
+                const selected = selectedDish.toLowerCase() === opt.toLowerCase();
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setSelectedDish(opt)}
+                    className={`border-2 border-black font-black text-xs px-3.5 py-2.5 min-h-[44px] transition-all cursor-pointer ${
+                      selected
+                        ? "bg-[var(--primary)] text-black shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
+                        : "bg-white hover:bg-stone-100 text-black"
+                    }`}
+                    aria-pressed={selected}
+                  >
+                    🍴 {opt}
+                  </button>
+                );
+              })}
+            </div>
+            {isMissingDish && (
+              <p className="text-xs font-bold text-rose-600 mt-1.5">
+                Silakan pilih salah satu menu masakan.
+              </p>
+            )}
+          </fieldset>
+        )}
+
         {wants && subDishes.length > 0 && (
           <fieldset className="neo-response-fieldset">
             <legend className="neo-response-legend">
@@ -136,12 +222,12 @@ export function ResponseForm({
             </legend>
             <div className="flex flex-wrap gap-2 mt-1">
               {subDishes.map((variant) => {
-                const selected = subDish === variant;
+                const selected = selectedVariant.toLowerCase() === variant.toLowerCase();
                 return (
                   <button
                     key={variant}
                     type="button"
-                    onClick={() => setSubDish(variant)}
+                    onClick={() => setSelectedVariant(variant)}
                     className={`border-2 border-black font-black text-xs px-3.5 py-2.5 min-h-[44px] transition-all cursor-pointer ${
                       selected
                         ? "bg-[var(--primary)] text-black shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
@@ -154,7 +240,7 @@ export function ResponseForm({
                 );
               })}
             </div>
-            {isMissingSubDish && (
+            {isMissingVariant && (
               <p className="text-xs font-bold text-rose-600 mt-1.5">
                 {t.variantRequired}
               </p>
@@ -162,37 +248,36 @@ export function ResponseForm({
           </fieldset>
         )}
 
-        <div className="neo-response-notes">
-          <p className="neo-response-notes-label">{t.noteLabel}</p>
-          {wants && (
-            <>
-              <p className="neo-response-notes-quick">{t.noteQuick}</p>
-              <div className="neo-response-note-chips">
-                {t.notePresets.map((preset) => {
-                  const selected = note === preset;
-                  return (
-                    <button
-                      key={preset}
-                      type="button"
-                      className={`neo-response-note-chip${selected ? " neo-response-note-chip--selected" : ""}`}
-                      onClick={() => toggleNotePreset(preset)}
-                      aria-pressed={selected}
-                    >
-                      {preset}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-          <Input
-            id="note"
-            name="note"
-            placeholder={t.notePlaceholder}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
+        {wants && addOns.length > 0 && (
+          <fieldset className="neo-response-fieldset">
+            <legend className="neo-response-legend">
+              {id.response.chooseAddOns || "Pilih Add-on (opsional)"}
+            </legend>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {addOns.map((addon) => {
+                const isSelected = selectedAddOns.includes(addon);
+                return (
+                  <button
+                    key={addon}
+                    type="button"
+                    onClick={() => toggleAddOn(addon)}
+                    className={`border-2 border-black font-black text-xs px-3.5 py-2.5 min-h-[44px] transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? "bg-emerald-300 text-black shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
+                        : "bg-white hover:bg-stone-100 text-black"
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    <span className="font-bold">{isSelected ? "✓" : "+"}</span>
+                    <span>{addon}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
+
+        <input type="hidden" name="note" value="" />
 
         <label className="neo-pref-save-toggle">
           <input
@@ -212,7 +297,7 @@ export function ResponseForm({
         <Button
           type="submit"
           variant="primary"
-          disabled={pending || isMissingSubDish}
+          disabled={pending || isFormIncomplete}
           className="neo-response-submit"
         >
           {pending ? t.saving : t.submit}
@@ -244,7 +329,9 @@ export function ResponseForm({
               <h3 className="neo-title text-xl">Jawaban Tersimpan!</h3>
               <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">
                 {wants
-                  ? `Pak Yono siap masakin ${dish} buat kamu!`
+                  ? `Pak Yono siap masakin ${computedSubDish || dish}${
+                      selectedAddOns.length > 0 ? ` (+ ${selectedAddOns.join(", ")})` : ""
+                    } buat kamu!`
                   : "Oke, pilihanmu buat lewati makan hari ini udah dicatet Pak Yono!"}
               </p>
             </div>

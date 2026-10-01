@@ -2,7 +2,7 @@ import { parseHHMM } from "./cutoff";
 
 export const HOURS = Array.from({ length: 24 }, (_, i) => i);
 export const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
-export const TIME_PRESETS = ["06:00", "07:00", "08:00", "09:00"] as const;
+export const TIME_PRESETS = ["07:00", "08:00", "12:00", "15:00", "16:00", "18:00"] as const;
 
 export function formatHHMM(hours: number, minutes: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;

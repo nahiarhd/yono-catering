@@ -98,8 +98,35 @@ function testWithSubDishes() {
   assert.ok(!msg.includes("—"), "Must not contain em dash");
 }
 
+function testWithAddOns() {
+  const msg = buildWhatsAppMessage({
+    dateDisplay: "Jumat, 25 September 2026",
+    dish: "Ayam Geprek",
+    note: null,
+    cutoff: "08:00",
+    breakdown: [{ dish: "Ayam Geprek", count: 2 }],
+    addOnBreakdown: [
+      { name: "Telor Dadar", count: 2 },
+      { name: "Kerupuk", count: 1 },
+    ],
+    totalPortions: 2,
+    orders: [
+      { name: "Raihan", dish: "Ayam Geprek", addOns: "Telor Dadar, Kerupuk", wants: true, note: "Sambal banyak" },
+      { name: "Pram", dish: "Ayam Geprek", addOns: "Telor Dadar", wants: true, note: null },
+    ],
+    pendingMembers: [],
+  });
+
+  assert.ok(msg.includes("*TAMBAHAN / ADD-ON:*"));
+  assert.ok(msg.includes("• Telor Dadar: 2 porsi"));
+  assert.ok(msg.includes("• Kerupuk: 1 porsi"));
+  assert.ok(msg.includes("1. Raihan [+ Telor Dadar, Kerupuk] [Catatan: Sambal banyak]"));
+  assert.ok(msg.includes("2. Pram [+ Telor Dadar]"));
+}
+
 testAllAnswered();
 testWithPendingMembers();
 testEmptyOrders();
 testWithSubDishes();
+testWithAddOns();
 console.log("whatsapp.test.ts ok");

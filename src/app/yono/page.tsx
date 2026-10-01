@@ -23,6 +23,13 @@ export default async function YonoHomePage() {
       orderBy: { name: "asc" },
     }),
   ]);
+
+  if (menu && !menu.reminderSentAt) {
+    import("@/lib/reminder-service").then(({ checkAndSendReminders }) => {
+      checkAndSendReminders().catch(() => {});
+    });
+  }
+
   const t = id.yono;
 
   const nonYonoResponses = menu
@@ -40,6 +47,7 @@ export default async function YonoHomePage() {
     .map((r) => ({
       name: r.user.name,
       dish: r.swapDish || menu!.dish,
+      addOns: r.addOns,
       wants: true,
       note: r.note,
     }));
@@ -49,6 +57,7 @@ export default async function YonoHomePage() {
     .map((r) => ({
       name: r.user.name,
       dish: undefined,
+      addOns: undefined,
       wants: false,
       note: r.note,
     }));
@@ -66,6 +75,7 @@ export default async function YonoHomePage() {
         note: menu.note,
         cutoff: cutoffText,
         breakdown: tally?.breakdown ?? [],
+        addOnBreakdown: tally?.addOnBreakdown ?? [],
         totalPortions: tally?.total ?? 0,
         orders,
         pendingMembers,
@@ -89,6 +99,7 @@ export default async function YonoHomePage() {
                 id: menu.id,
                 dish: menu.dish,
                 subDishes: menu.subDishes,
+                addOns: menu.addOns,
                 note: menu.note,
                 cutoffOverride: menu.cutoffOverride,
               }

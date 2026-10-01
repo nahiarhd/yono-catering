@@ -4,6 +4,8 @@ import { getSettings, getDefaultDishes } from "@/lib/settings";
 import { id } from "@/lib/id";
 import { PageShell, Card } from "@/components/ui";
 import { AppNav } from "@/components/nav";
+import { db } from "@/lib/db";
+import { todayKey, parseDateKey } from "@/lib/dates";
 import { DefaultDishesForm } from "@/components/default-dishes-form";
 import { UpdatePinCard } from "@/components/update-pin-card";
 import { SettingsForm } from "./settings-forms";
@@ -13,9 +15,19 @@ export default async function SettingsPage() {
   const isKitchenOrAdmin = isAdmin(user);
   const isSuperAdmin = user.role === "admin";
 
-  const [settings, defaultDishes] = isKitchenOrAdmin
-    ? await Promise.all([getSettings(), getDefaultDishes()])
-    : [null, null];
+  const [settings, defaultDishes, todayMenu, telegramCount, totalMembers] = isKitchenOrAdmin
+    ? await Promise.all([
+        getSettings(),
+        getDefaultDishes(),
+        db.menu.findUnique({ where: { date: parseDateKey(todayKey()) } }),
+        db.user.count({ where: { role: { not: "yono" }, telegramChatId: { not: null } } }),
+        db.user.count({ where: { role: { not: "yono" } } }),
+      ])
+    : [null, null, null, 0, 0];
+
+  const reminderSentAt = todayMenu?.reminderSentAt
+    ? todayMenu.reminderSentAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+    : null;
 
   return (
     <PageShell title={id.settings.title} nav={<AppNav role={user.role} />}>
@@ -28,6 +40,10 @@ export default async function SettingsPage() {
           <SettingsForm
             standingCutoff={settings.standingCutoff}
             reminderTime={settings.reminderTime}
+            hasTelegramToken={Boolean(process.env.TELEGRAM_BOT_TOKEN)}
+            telegramCount={telegramCount}
+            totalMembers={totalMembers}
+            reminderSentAt={reminderSentAt}
           />
 
           <DefaultDishesForm dishes={defaultDishes} />

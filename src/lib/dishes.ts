@@ -3,6 +3,7 @@ export type DefaultDish = {
   name: string;
   note?: string | null;
   subDishes?: string[];
+  addOns?: string[];
 };
 
 export function normalizeDishKey(dish: string): string {
@@ -58,7 +59,7 @@ export function parseDefaultDishes(value: unknown): DefaultDish[] {
       const key = normalizeDishKey(name);
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ warung: null, name, note: null, subDishes: [] });
+      out.push({ warung: null, name, note: null, subDishes: [], addOns: [] });
     } else if (
       item &&
       typeof item === "object" &&
@@ -76,7 +77,9 @@ export function parseDefaultDishes(value: unknown): DefaultDish[] {
       const note = typeof rawNote === "string" ? rawNote.trim() || null : null;
       const rawSub = (item as { subDishes?: unknown }).subDishes;
       const subDishes = parseSubDishes(rawSub);
-      out.push({ warung, name, note, subDishes });
+      const rawAddOns = (item as { addOns?: unknown }).addOns;
+      const addOns = parseSubDishes(rawAddOns);
+      out.push({ warung, name, note, subDishes, addOns });
     }
   }
   return out;

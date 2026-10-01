@@ -1,102 +1,30 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { nowInHousehold, parseDateKey, todayKey } from "@/lib/dates";
-import { getSettings } from "@/lib/settings";
-import { effectiveCutoff } from "@/lib/cutoff";
 import { deletePastMenus } from "@/lib/menu-data";
-import { sendPush } from "@/lib/push";
-import { id } from "@/lib/id";
-import {
-  getAppUrl,
-  formatReminderMessage,
-  sendTelegramMessage,
-} from "@/lib/telegram";
+import { checkAndSendReminders } from "@/lib/reminder-service";
 
 export async function GET(request: Request) {
+  const url = new URL(request.url);
   const auth = request.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
-  if (!secret || auth !== `Bearer ${secret}`) {
+  const isAuthValid = Boolean(secret && auth === `Bearer ${secret}`);
+  const querySecret = url.searchParams.get("secret");
+  const isQuerySecretValid = Boolean(secret && querySecret === secret);
+
+  if (!isAuthValid && !isQuerySecretValid) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const settings = await getSettings();
-  await deletePastMenus();
-  const { hhmm } = nowInHousehold();
-  if (hhmm !== settings.reminderTime) {
-    return NextResponse.json({ skipped: true, now: hhmm, expected: settings.reminderTime });
+  const force = url.searchParams.get("force") === "true";
+
+  try {
+    await deletePastMenus();
+    const result = await checkAndSendReminders({ force });
+    return NextResponse.json(result);
+  } catch (err) {
+    console.error("Gagal menjalankan cron reminder:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
   }
-
-  const dateKey = todayKey();
-  const menu = await db.menu.findUnique({
-    where: { date: parseDateKey(dateKey) },
-    include: {
-      responses: {
-        select: { userId: true },
-      },
-    },
-  });
-
-  const appUrl = getAppUrl();
-
-  if (!menu) {
-    const yono = await db.user.findFirst({
-      where: { role: "yono" },
-      select: { id: true, telegramChatId: true },
-    });
-    if (yono) {
-      await sendPush([yono.id], {
-        title: id.push.morningTitle,
-        body: id.push.morningBody,
-        url: "/yono",
-      });
-      if (yono.telegramChatId) {
-        await sendTelegramMessage(
-          yono.telegramChatId,
-          `👨‍🍳 <b>PENGINGAT PAK YONO</b>\n\nSelamat pagi Pak Yono! Menu katering hari ini belum diposting.\nYuk posting menu sekarang:\n👉 <a href="${appUrl}/yono">${appUrl}/yono</a>`
-        );
-      }
-    }
-  } else {
-    const cutoff = effectiveCutoff(settings.standingCutoff, menu.cutoffOverride);
-    const respondedUserIds = new Set(menu.responses.map((r) => r.userId));
-
-    const pendingMembers = await db.user.findMany({
-      where: {
-        role: { not: "yono" },
-        id: { notIn: Array.from(respondedUserIds) },
-      },
-      select: { id: true, name: true, telegramChatId: true },
-    });
-
-    if (pendingMembers.length > 0) {
-      await sendPush(
-        pendingMembers.map((m) => m.id),
-        {
-          title: "Pengingat Katering",
-          body: `Jangan lupa isi pilihan menu ${menu.dish} sebelum ${cutoff}.`,
-          url: "/home",
-        }
-      );
-
-      const withTelegram = pendingMembers.filter(
-        (m) => m.telegramChatId && m.telegramChatId.trim().length > 0
-      );
-
-      if (withTelegram.length > 0) {
-        await Promise.allSettled(
-          withTelegram.map((m) => {
-            const text = formatReminderMessage({
-              name: m.name,
-              dish: menu.dish,
-              cutoff,
-              appUrl,
-            });
-            return sendTelegramMessage(m.telegramChatId!, text);
-          })
-        );
-      }
-    }
-  }
-
-  return NextResponse.json({ ok: true });
 }

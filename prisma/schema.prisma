@@ -31,8 +31,10 @@ model Menu {
   date           DateTime
   dish           String
   subDishes      String?
+  addOns         String?
   note           String?
   cutoffOverride String?
+  reminderSentAt DateTime?
   createdAt      DateTime   @default(now())
   responses      Response[]
 
@@ -45,6 +47,7 @@ model Response {
   userId    String
   wants     Boolean
   swapDish  String?
+  addOns    String?
   note      String?
   updatedAt DateTime @updatedAt
   menu      Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
@@ -66,6 +69,7 @@ model DishPreference {
   forDish  String
   wants    Boolean
   swapDish String?
+  addOns   String?
   note     String?
   user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 

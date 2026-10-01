@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState, useEffect, useId } from "react";
+import { useState, useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { id } from "@/lib/id";
 import type { DefaultDish } from "@/lib/dishes";
@@ -21,20 +21,25 @@ export interface YonoSlideDashboardProps {
     id: string;
     dish: string;
     subDishes?: string | null;
+    addOns?: string | null;
     note?: string | null;
     cutoffOverride?: string | null;
   } | null;
   locked: boolean;
   defaultDishes: (DefaultDish | string)[];
   eaters: { id: string; name: string }[];
-  tally: { total: number; breakdown: { dish: string; count: number }[] } | null;
-  eatingOrders: { name: string; dish?: string; note?: string | null }[];
+  tally: {
+    total: number;
+    breakdown: { dish: string; count: number }[];
+    addOnBreakdown?: { name: string; count: number; users: string[] }[];
+  } | null;
+  eatingOrders: { name: string; dish?: string; addOns?: string | null; note?: string | null }[];
   notEatingOrders: { name: string; note?: string | null }[];
   pendingUsers: PendingUser[];
   cutoffText: string;
   waMessage: string;
   waUrl: string;
-}
+};
 
 export function YonoSlideDashboard({
   dateKey,
@@ -64,7 +69,7 @@ export function YonoSlideDashboard({
   // Form state for Menu Form
   const [dish, setDish] = useState(menu?.dish ?? "");
   const [subDishes, setSubDishes] = useState(menu?.subDishes ?? "");
-  const [menuNote, setMenuNote] = useState(menu?.note ?? "");
+  const [addOns, setAddOns] = useState(menu?.addOns ?? "");
 
   // Server action for posting menu
   const [menuFormState, formAction, menuPending] = useActionState(
@@ -85,10 +90,14 @@ export function YonoSlideDashboard({
 
   function handleSelectPreset(preset: DefaultDish) {
     setDish(preset.name);
-    setMenuNote(preset.note || "");
     setSubDishes(
       preset.subDishes && preset.subDishes.length > 0
         ? preset.subDishes.join(", ")
+        : ""
+    );
+    setAddOns(
+      preset.addOns && preset.addOns.length > 0
+        ? preset.addOns.join(", ")
         : ""
     );
   }
@@ -118,7 +127,11 @@ export function YonoSlideDashboard({
   const totalAnswered = eatingOrders.length + notEatingOrders.length;
   const isAllAnswered = eaters.length > 0 && pendingUsers.length === 0;
   const currentSubDishesList = parseSubDishes(subDishes);
+  const currentAddOnsList = parseSubDishes(addOns);
+  const currentDishList = parseSubDishes(dish);
   const parsedActiveSubDishes = menu ? parseSubDishes(menu.subDishes) : [];
+  const parsedActiveAddOns = menu ? parseSubDishes(menu.addOns) : [];
+  const parsedActiveDishes = menu ? parseSubDishes(menu.dish) : [];
 
   const selectedPreset = parsedPresets.find(
     (p) => dish.trim().toLowerCase() === p.name.trim().toLowerCase()
@@ -226,10 +239,30 @@ export function YonoSlideDashboard({
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold uppercase text-emerald-900/80">Menu Masakan:</p>
-                  <p className="text-lg sm:text-xl font-black text-black">
-                    {dish}
-                  </p>
+                  {currentDishList.length > 1 ? (
+                    <div>
+                      <p className="text-xs font-bold uppercase text-emerald-900/80 mb-1">
+                        Pilihan Menu Masakan ({currentDishList.length} menu):
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {currentDishList.map((d) => (
+                          <span
+                            key={d}
+                            className="text-xs font-black bg-white border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]"
+                          >
+                            🍴 {d}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-xs font-bold uppercase text-emerald-900/80">Menu Masakan:</p>
+                      <p className="text-lg sm:text-xl font-black text-black">
+                        {dish}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {currentSubDishesList.length > 0 && (
@@ -248,10 +281,20 @@ export function YonoSlideDashboard({
                   </div>
                 )}
 
-                {menuNote && (
-                  <p className="text-xs font-semibold text-stone-700 italic mt-0.5 bg-white/70 p-2 border border-black/20">
-                    Catatan: {menuNote}
-                  </p>
+                {currentAddOnsList.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                    <span className="text-xs font-bold text-emerald-950 mr-1">
+                      Pilihan add-on:
+                    </span>
+                    {currentAddOnsList.map((addon) => (
+                      <span
+                        key={addon}
+                        className="text-xs font-bold bg-white border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]"
+                      >
+                        + {addon}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
             ) : (
@@ -331,17 +374,18 @@ export function YonoSlideDashboard({
                 </div>
 
                 <div>
-                  <Label htmlFor="yono-note-input" className="text-xs font-bold uppercase text-black">
-                    Catatan Masakan Pak Yono (opsional):
+                  <Label htmlFor="yono-addons-input" className="text-xs font-bold uppercase text-black">
+                    Pilihan Add-on (opsional, pisahkan koma):
                   </Label>
                   <Input
-                    id="yono-note-input"
-                    name="menuNote"
-                    placeholder="contoh: Sudah termasuk lalapan dan sambal terasi"
-                    value={menuNote}
-                    onChange={(e) => setMenuNote(e.target.value)}
+                    id="yono-addons-input"
+                    name="addOns"
+                    placeholder="contoh: Telor Ceplok, Telor Dadar, Kerupuk"
+                    value={addOns}
+                    onChange={(e) => setAddOns(e.target.value)}
                     className="text-sm border-2 border-black bg-white"
                   />
+                  <input type="hidden" name="menuNote" value="" />
                 </div>
               </div>
             </details>
@@ -367,28 +411,59 @@ export function YonoSlideDashboard({
                   </span>
                 )}
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-black">
-                {menu.dish}
-              </h2>
+              {parsedActiveDishes.length > 1 ? (
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-black">
+                    {selectedPreset?.warung || "Pilihan Menu Hari Ini"}
+                  </h2>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {parsedActiveDishes.map((item) => (
+                      <span
+                        key={item}
+                        className="text-xs font-black bg-white border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]"
+                      >
+                        🍴 {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <h2 className="text-xl sm:text-2xl font-black text-black">
+                  {menu.dish}
+                </h2>
+              )}
               {parsedActiveSubDishes.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-1">
+                <div className="mt-2 flex flex-wrap items-center gap-1">
+                  <span className="text-[11px] font-bold text-[var(--text-muted)] mr-1">
+                    Varian:
+                  </span>
                   {parsedActiveSubDishes.map((sub) => (
                     <span
                       key={sub}
-                      className="border border-black bg-white px-2 py-0.5 text-xs font-bold"
+                      className="border border-black bg-amber-100 px-2 py-0.5 text-xs font-bold"
                     >
                       {sub}
                     </span>
                   ))}
                 </div>
               )}
-              {menu.note && (
-                <p className="mt-1 text-xs font-semibold text-stone-700 italic">
-                  Catatan: {menu.note}
-                </p>
+              {parsedActiveAddOns.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1">
+                  <span className="text-[11px] font-bold text-[var(--text-muted)] mr-1">
+                    Add-on:
+                  </span>
+                  {parsedActiveAddOns.map((addon) => (
+                    <span
+                      key={addon}
+                      className="border border-black bg-emerald-100 px-2 py-0.5 text-xs font-bold"
+                    >
+                      + {addon}
+                    </span>
+                  ))}
+                </div>
               )}
               <p className="mt-1 text-xs font-bold text-stone-600">
-                Batas Pesan Otomatis: {cutoffText} (Jam 6 Sore) {locked ? "· Terkunci untuk anggota" : "· Masih Buka"}
+                Batas Pesan Otomatis: {cutoffText} WIB {locked ? "· Terkunci untuk anggota" : "· Masih Buka"}
               </p>
             </div>
 
@@ -468,6 +543,32 @@ export function YonoSlideDashboard({
               <p className="mt-2 text-right text-sm font-black">
                 {t.totalPortions(tally?.total ?? 0)}
               </p>
+
+              {tally?.addOnBreakdown && tally.addOnBreakdown.length > 0 && (
+                <div className="mt-3 border-t-2 border-black pt-3">
+                  <p className="text-xs font-black uppercase text-[var(--text-muted)] mb-2">
+                    🍳 Tambahan / Add-on Dipesan:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {tally.addOnBreakdown.map((item) => (
+                      <div
+                        key={item.name}
+                        className="border-2 border-black bg-emerald-50 p-2.5 flex justify-between items-center shadow-[2px_2px_0px_#000]"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-black">+ {item.name}</span>
+                          <span className="text-[11px] text-stone-600 font-medium">
+                            {item.users.join(", ")}
+                          </span>
+                        </div>
+                        <span className="border-2 border-black bg-emerald-300 px-2.5 py-0.5 text-xs font-black">
+                          {item.count} porsi
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* WhatsApp Text Preview Accordion */}
@@ -576,6 +677,11 @@ export function YonoSlideDashboard({
                               {o.dish}
                             </span>
                           )}
+                          {o.addOns && (
+                            <span className="text-xs border-2 border-black px-1.5 py-0.5 font-bold bg-emerald-100">
+                              + {o.addOns}
+                            </span>
+                          )}
                           <span className="text-xs border-2 border-black px-1.5 py-0.5 font-bold bg-emerald-200">
                             Ikut
                           </span>
@@ -637,6 +743,7 @@ export function YonoSlideDashboard({
           dateKey={dateKey}
           menuDish={menu.dish}
           subDishes={parsedActiveSubDishes}
+          addOns={parsedActiveAddOns}
           onClose={() => setSelectedPendingUser(null)}
           onSuccess={() => {
             setSelectedPendingUser(null);
@@ -656,6 +763,7 @@ function RecordResponseModal({
   dateKey,
   menuDish,
   subDishes,
+  addOns = [],
   onClose,
   onSuccess,
 }: {
@@ -663,14 +771,20 @@ function RecordResponseModal({
   dateKey: string;
   menuDish: string;
   subDishes: string[];
+  addOns?: string[];
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [wants, setWants] = useState(true);
   const [selectedSubDish, setSelectedSubDish] = useState(subDishes[0] ?? "");
-  const [note, setNote] = useState("");
-  const noteId = useId();
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const t = id.yono;
+
+  function toggleAddOn(addon: string) {
+    setSelectedAddOns((prev) =>
+      prev.includes(addon) ? prev.filter((a) => a !== addon) : [...prev, addon]
+    );
+  }
 
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
@@ -693,8 +807,6 @@ function RecordResponseModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
-
-  const notePresets = id.response.notePresets;
 
   return (
     <div
@@ -736,6 +848,9 @@ function RecordResponseModal({
           <input type="hidden" name="wants" value={wants ? "yes" : "no"} />
           {wants && (
             <input type="hidden" name="subDish" value={selectedSubDish} />
+          )}
+          {wants && (
+            <input type="hidden" name="addOns" value={selectedAddOns.join(", ")} />
           )}
 
           {/* Status Selection Cards */}
@@ -804,42 +919,38 @@ function RecordResponseModal({
             </div>
           )}
 
-          {/* Optional Note */}
-          <div>
-            <label
-              htmlFor={noteId}
-              className="block text-xs font-black uppercase tracking-wider text-[var(--text-muted)] mb-1"
-            >
-              {id.response.noteLabel}
-            </label>
-            <Input
-              id={noteId}
-              name="note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="contoh: pedas, bungkus, tanpa sayur"
-              className="w-full text-sm min-h-[44px]"
-            />
-
-            {/* Quick Note Presets */}
-            <div className="mt-2 flex flex-wrap gap-1.5 items-center">
-              <span className="text-[11px] font-bold text-[var(--text-muted)]">
-                {id.response.noteQuick}
-              </span>
-              {notePresets.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() =>
-                    setNote((prev) => (prev ? `${prev}, ${preset}` : preset))
-                  }
-                  className="border border-black bg-stone-100 hover:bg-stone-200 px-2 py-1 text-xs font-bold cursor-pointer"
-                >
-                  +{preset}
-                </button>
-              ))}
+          {/* Add-on Selection if wants is true and addOns exist */}
+          {wants && addOns.length > 0 && (
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                {id.response.chooseAddOns || "Pilih Add-on (opsional)"}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {addOns.map((addon) => {
+                  const isSelected = selectedAddOns.includes(addon);
+                  return (
+                    <button
+                      key={addon}
+                      type="button"
+                      onClick={() => toggleAddOn(addon)}
+                      className={`border-2 border-black px-3.5 py-2 text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center gap-1.5 ${
+                        isSelected
+                          ? "bg-emerald-300 shadow-[2px_2px_0px_#000]"
+                          : "bg-white hover:bg-stone-100"
+                      }`}
+                      aria-pressed={isSelected}
+                    >
+                      <span>{isSelected ? "✓" : "+"}</span>
+                      <span>{addon}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Hidden Note for compatibility */}
+          <input type="hidden" name="note" value="" />
 
           {state?.error && (
             <p className="border-2 border-black bg-red-100 p-2 text-xs font-bold text-[var(--danger)]">

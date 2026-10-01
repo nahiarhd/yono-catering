@@ -1,8 +1,10 @@
 import { id } from "./id";
+import { parseSubDishes } from "./dishes";
 
 type ResponseRow = {
   wants: boolean;
   swapDish: string | null;
+  addOns?: string | null;
   note: string | null;
   user: { name: string };
 };
@@ -27,10 +29,29 @@ export function buildTally(menuDish: string, responses: ResponseRow[]) {
     breakdown.push({ dish, count });
   }
 
+  const addOnCounts = new Map<string, { count: number; users: string[] }>();
+  for (const r of eating) {
+    if (r.addOns?.trim()) {
+      const items = parseSubDishes(r.addOns);
+      for (const item of items) {
+        const existing = addOnCounts.get(item) ?? { count: 0, users: [] };
+        existing.count += 1;
+        existing.users.push(r.user.name);
+        addOnCounts.set(item, existing);
+      }
+    }
+  }
+
+  const addOnBreakdown: { name: string; count: number; users: string[] }[] = [];
+  for (const [name, data] of addOnCounts.entries()) {
+    addOnBreakdown.push({ name, count: data.count, users: data.users });
+  }
+
   const parts = breakdown.map(({ dish, count }) => id.tally.portion(count, dish));
   return {
     summary: parts.join(", ") || id.tally.empty,
     breakdown,
+    addOnBreakdown,
     total: eating.length,
     eatingCount: eating.length,
     notEatingCount: notEating.length,

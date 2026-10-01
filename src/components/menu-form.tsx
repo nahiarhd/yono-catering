@@ -28,7 +28,6 @@ export function MenuForm({
   const t = id.yono;
   const [dish, setDish] = useState(initial?.dish ?? "");
   const [subDishes, setSubDishes] = useState(initial?.subDishes ?? "");
-  const [menuNote, setMenuNote] = useState(initial?.note ?? "");
 
   const parsedDishes: DefaultDish[] = defaultDishes.map((d) =>
     typeof d === "string" ? { name: d, note: null, subDishes: [] } : d
@@ -36,7 +35,6 @@ export function MenuForm({
 
   function handleSelectPreset(preset: DefaultDish) {
     setDish(preset.name);
-    setMenuNote(preset.note || "");
     setSubDishes(
       preset.subDishes && preset.subDishes.length > 0
         ? preset.subDishes.join(", ")
@@ -83,16 +81,7 @@ export function MenuForm({
           />
         </div>
 
-        <div>
-          <Label htmlFor="menuNote">{t.noteLabel}</Label>
-          <Input
-            id="menuNote"
-            name="menuNote"
-            placeholder={t.notePlaceholder}
-            value={menuNote}
-            onChange={(e) => setMenuNote(e.target.value)}
-          />
-        </div>
+        <input type="hidden" name="menuNote" value="" />
 
         <div>
           <Label htmlFor="subDishes">{t.subDishesLabel}</Label>

@@ -51,6 +51,7 @@ export async function upsertMenu(input: {
   dateKey: string;
   dish: string;
   subDishes?: string | null;
+  addOns?: string | null;
   note: string | null;
   cutoffOverride: string | null;
 }) {
@@ -60,12 +61,14 @@ export async function upsertMenu(input: {
       date: parseDateKey(input.dateKey),
       dish: input.dish,
       subDishes: input.subDishes,
+      addOns: input.addOns,
       note: input.note,
       cutoffOverride: input.cutoffOverride,
     },
     update: {
       dish: input.dish,
       subDishes: input.subDishes,
+      addOns: input.addOns,
       note: input.note,
       cutoffOverride: input.cutoffOverride,
     },

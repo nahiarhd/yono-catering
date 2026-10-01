@@ -92,10 +92,20 @@ function DefaultDishRow({
             ))}
           </div>
         )}
-        {dish.note && (
-          <p className="text-xs font-semibold text-[var(--text-muted)] mt-1">
-            {t.dishNotePrefix} {dish.note}
-          </p>
+        {dish.addOns && dish.addOns.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 mt-1">
+            <span className="text-[11px] font-bold text-[var(--text-muted)] mr-1">
+              {t.dishAddOnsPrefix}
+            </span>
+            {dish.addOns.map((addon) => (
+              <span
+                key={addon}
+                className="text-[10px] font-bold bg-emerald-100 border border-black px-1.5 py-0.5"
+              >
+                + {addon}
+              </span>
+            ))}
+          </div>
         )}
       </div>
       <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
@@ -143,6 +153,7 @@ function EditDefaultDishForm({
   }, [state.ok, onDone]);
 
   const subDishesValue = formatSubDishes(dish.subDishes);
+  const addOnsValue = formatSubDishes(dish.addOns);
 
   return (
     <form action={action} className="flex flex-col gap-3">
@@ -202,16 +213,16 @@ function EditDefaultDishForm({
 
       <div>
         <label
-          htmlFor={`edit-note-${dish.name}`}
+          htmlFor={`edit-addons-${dish.name}`}
           className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1"
         >
-          {t.dishNote}
+          {t.dishAddOns}
         </label>
         <Input
-          id={`edit-note-${dish.name}`}
-          name="note"
-          defaultValue={dish.note ?? ""}
-          placeholder={t.dishNotePlaceholder}
+          id={`edit-addons-${dish.name}`}
+          name="addOns"
+          defaultValue={addOnsValue}
+          placeholder={t.dishAddOnsPlaceholder}
         />
       </div>
 
@@ -265,10 +276,10 @@ function AddDefaultDishForm() {
         <Input id="dishSubDishesInput" name="subDishes" placeholder={t.dishSubDishesPlaceholder} />
       </div>
       <div>
-        <label htmlFor="dishNoteInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
-          {t.dishNote}
+        <label htmlFor="dishAddOnsInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
+          {t.dishAddOns}
         </label>
-        <Input id="dishNoteInput" name="note" placeholder={t.dishNotePlaceholder} />
+        <Input id="dishAddOnsInput" name="addOns" placeholder={t.dishAddOnsPlaceholder} />
       </div>
       {state.error && <p className="font-bold text-[var(--danger)]">{state.error}</p>}
       {state.ok && <p className="font-bold text-[var(--success)]">{t.dishAdded}</p>}

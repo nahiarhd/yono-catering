@@ -24,12 +24,14 @@ export function escapeHtml(str: string): string {
 export function formatMenuBroadcastMessage({
   dish,
   subDishes,
+  addOns,
   cutoff,
   note,
   appUrl,
 }: {
   dish: string;
   subDishes?: string | null;
+  addOns?: string | null;
   cutoff: string;
   note?: string | null;
   appUrl: string;
@@ -38,6 +40,7 @@ export function formatMenuBroadcastMessage({
   const safeCutoff = escapeHtml(cutoff);
   const safeNote = note?.trim() ? escapeHtml(note.trim()) : null;
   const safeSubDishes = subDishes?.trim() ? escapeHtml(subDishes.trim()) : null;
+  const safeAddOns = addOns?.trim() ? escapeHtml(addOns.trim()) : null;
 
   const lines = [
     "🔔 <b>MENU HARI INI DIPOSTING!</b>",
@@ -47,6 +50,10 @@ export function formatMenuBroadcastMessage({
 
   if (safeSubDishes) {
     lines.push(`🍲 Pilihan Varian: <b>${safeSubDishes}</b>`);
+  }
+
+  if (safeAddOns) {
+    lines.push(`🍳 Pilihan Add-on: <b>${safeAddOns}</b>`);
   }
 
   if (safeNote) {

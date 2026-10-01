@@ -33,9 +33,12 @@ export async function postMenuAction(
   const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
   const subDishesList = parseSubDishes(subDishesRaw);
   const subDishes = subDishesList.length > 0 ? formatSubDishes(subDishesList) : null;
+  const addOnsRaw = String(formData.get("addOns") ?? "").trim();
+  const addOnsList = parseSubDishes(addOnsRaw);
+  const addOns = addOnsList.length > 0 ? formatSubDishes(addOnsList) : null;
   const menuNote = String(formData.get("menuNote") ?? "").trim() || null;
   const cutoffRaw = String(formData.get("cutoffOverride") ?? "").trim();
-  const cutoffOverride = cutoffRaw ? cutoffRaw : "18:00";
+  const cutoffOverride = cutoffRaw ? cutoffRaw : null;
 
   if (!dateKey || dateKey < todayKey()) return { error: id.errors.missingDay };
   if (!dish) return { error: id.errors.dishRequired };
@@ -49,6 +52,7 @@ export async function postMenuAction(
     dateKey,
     dish,
     subDishes,
+    addOns,
     note: menuNote,
     cutoffOverride,
   });
@@ -74,6 +78,7 @@ export async function postMenuAction(
         const broadcastText = formatMenuBroadcastMessage({
           dish,
           subDishes,
+          addOns,
           cutoff,
           note: menuNote,
           appUrl: getAppUrl(),
@@ -185,6 +190,9 @@ export async function recordMemberResponseAction(
   const wantsRaw = String(formData.get("wants") ?? "yes");
   const wants = wantsRaw === "yes";
   const subDish = String(formData.get("subDish") ?? "").trim() || null;
+  const addOnsRaw = String(formData.get("addOns") ?? "").trim();
+  const addOnsList = parseSubDishes(addOnsRaw);
+  const addOns = wants && addOnsList.length > 0 ? formatSubDishes(addOnsList) : null;
   const note = String(formData.get("note") ?? "").trim() || null;
 
   if (!dateKey || !userId) {
@@ -213,11 +221,13 @@ export async function recordMemberResponseAction(
       userId,
       wants,
       swapDish: wants ? subDish : null,
+      addOns,
       note,
     },
     update: {
       wants,
       swapDish: wants ? subDish : null,
+      addOns,
       note,
     },
   });

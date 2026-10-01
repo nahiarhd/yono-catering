@@ -1,6 +1,7 @@
 export type WhatsAppOrder = {
   name: string;
   dish?: string;
+  addOns?: string | null;
   wants?: boolean;
   isSwap?: boolean;
   note: string | null;
@@ -12,6 +13,7 @@ export type WhatsAppPayload = {
   note?: string | null;
   cutoff?: string | null;
   breakdown: Array<{ dish: string; count: number }>;
+  addOnBreakdown?: Array<{ name: string; count: number }>;
   totalPortions: number;
   orders: WhatsAppOrder[];
   pendingMembers: string[];
@@ -37,6 +39,14 @@ export function buildWhatsAppMessage(payload: WhatsAppPayload): string {
     lines.push("• Belum ada pesanan masuk");
   }
   lines.push(`*Total: ${payload.totalPortions} porsi*`);
+
+  if (payload.addOnBreakdown && payload.addOnBreakdown.length > 0) {
+    lines.push("");
+    lines.push("*TAMBAHAN / ADD-ON:*");
+    for (const item of payload.addOnBreakdown) {
+      lines.push(`• ${item.name}: ${item.count} porsi`);
+    }
+  }
   lines.push("");
 
   const eating = payload.orders.filter((o) => o.wants !== false);
@@ -46,8 +56,9 @@ export function buildWhatsAppMessage(payload: WhatsAppPayload): string {
   if (eating.length > 0) {
     eating.forEach((o, i) => {
       const variant = o.dish && o.dish !== payload.dish ? ` (${o.dish})` : "";
+      const addOns = o.addOns?.trim() ? ` [+ ${o.addOns.trim()}]` : "";
       const note = o.note?.trim() ? ` [Catatan: ${o.note.trim()}]` : "";
-      lines.push(`${i + 1}. ${o.name}${variant}${note}`);
+      lines.push(`${i + 1}. ${o.name}${variant}${addOns}${note}`);
     });
   } else {
     lines.push("(Belum ada yang ikut makan)");

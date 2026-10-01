@@ -41,10 +41,28 @@ export function TimePicker({
         </button>
       ) : (
         <>
-          <div className="neo-time-display" aria-live="polite">
-            <span>{String(hours).padStart(2, "0")}</span>
-            <span className="neo-time-colon">:</span>
-            <span>{String(minutes).padStart(2, "0")}</span>
+          <div className="flex flex-col items-center gap-1 my-1">
+            <div className="neo-time-display relative flex items-center justify-center cursor-pointer" aria-live="polite">
+              <span>{String(hours).padStart(2, "0")}</span>
+              <span className="neo-time-colon">:</span>
+              <span>{String(minutes).padStart(2, "0")}</span>
+              <input
+                type="time"
+                value={value}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const parsed = parseTimeValue(e.target.value);
+                    setHours(parsed.hours);
+                    setMinutes(parsed.minutes);
+                  }
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                aria-label={`Pilih waktu ${label}`}
+              />
+            </div>
+            <span className="text-[10px] font-bold text-[var(--text-muted)]">
+              (Klik angka untuk ubah langsung)
+            </span>
           </div>
 
           <input type="hidden" name={name} value={value} />

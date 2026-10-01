@@ -4,6 +4,7 @@ import { normalizeDishKey } from "./dishes";
 export type PreferenceValue = {
   wants: boolean;
   swapDish: string | null;
+  addOns?: string | null;
   note: string | null;
 };
 
@@ -27,6 +28,7 @@ export function preferenceToInitial(pref: PreferenceValue | null | undefined) {
   return {
     wants: pref.wants,
     swapDish: pref.swapDish,
+    addOns: pref.addOns ?? null,
     note: pref.note,
   };
 }
@@ -45,12 +47,14 @@ export async function upsertDishPreference(
       userId,
       forDish,
       wants: value.wants,
-      swapDish: value.wants ? null : value.swapDish?.trim() || null,
+      swapDish: value.swapDish?.trim() || null,
+      addOns: value.addOns?.trim() || null,
       note: value.note?.trim() || null,
     },
     update: {
       wants: value.wants,
-      swapDish: value.wants ? null : value.swapDish?.trim() || null,
+      swapDish: value.swapDish?.trim() || null,
+      addOns: value.addOns?.trim() || null,
       note: value.note?.trim() || null,
     },
   });

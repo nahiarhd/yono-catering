@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useActionState, useId } from "react";
+import { useState, useEffect, useActionState } from "react";
 import { recordMemberResponseAction, type ActionState } from "@/app/yono/actions";
 import { TelegramPingButton } from "@/components/telegram-ping-button";
-import { Button, Input } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { id } from "@/lib/id";
 
 export interface PendingUser {
@@ -94,8 +94,6 @@ function RecordResponseModal({
 }) {
   const [wants, setWants] = useState(true);
   const [selectedSubDish, setSelectedSubDish] = useState(subDishes[0] ?? "");
-  const [note, setNote] = useState("");
-  const noteId = useId();
   const t = id.yono;
 
   const [state, formAction, pending] = useActionState(
@@ -119,8 +117,6 @@ function RecordResponseModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
-
-  const notePresets = id.response.notePresets;
 
   return (
     <div
@@ -227,42 +223,8 @@ function RecordResponseModal({
             </div>
           )}
 
-          {/* Optional Note */}
-          <div>
-            <label
-              htmlFor={noteId}
-              className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1"
-            >
-              {id.response.noteLabel}
-            </label>
-            <Input
-              id={noteId}
-              name="note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="contoh: pedas, bungkus, tanpa sayur"
-              className="w-full text-sm min-h-[40px]"
-            />
-
-            {/* Quick Note Presets */}
-            <div className="mt-2 flex flex-wrap gap-1.5 items-center">
-              <span className="text-[11px] font-semibold text-[var(--text-muted)]">
-                {id.response.noteQuick}
-              </span>
-              {notePresets.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() =>
-                    setNote((prev) => (prev ? `${prev}, ${preset}` : preset))
-                  }
-                  className="border border-black bg-stone-100 hover:bg-stone-200 px-2 py-0.5 text-[11px] font-bold cursor-pointer"
-                >
-                  +{preset}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Hidden Note for compatibility */}
+          <input type="hidden" name="note" value="" />
 
           {state?.error && (
             <p className="border-2 border-black bg-red-100 p-2 text-xs font-bold text-[var(--danger)]">
