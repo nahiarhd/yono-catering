@@ -120,124 +120,142 @@ export function YonoSlideDashboard({
   const currentSubDishesList = parseSubDishes(subDishes);
   const parsedActiveSubDishes = menu ? parseSubDishes(menu.subDishes) : [];
 
+  const selectedPreset = parsedPresets.find(
+    (p) => dish.trim().toLowerCase() === p.name.trim().toLowerCase()
+  );
+
   return (
     <div className="flex flex-col gap-4">
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* SLIDE 1: PILIH ATAU TULIS MENU MASAKAN                         */}
+      {/* SLIDE 1: PILIH DARI DAFTAR MENU BAWAAN                         */}
       {/* ───────────────────────────────────────────────────────────── */}
       {activeStep === 1 && (
         <Card accent="yellow" className="border-3 border-black shadow-[5px_5px_0px_#000]">
           {/* Header */}
           <div className="border-b-2 border-black pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+              <span className="bg-black text-[#fdc800] text-[11px] font-black px-2 py-0.5 uppercase tracking-wider shadow-[1px_1px_0px_#000]">
+                PILIHAN MENU CEPAT
+              </span>
+              <span className="text-xs font-bold text-stone-700 bg-white border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]">
+                {dateDisplay}
+              </span>
+            </div>
             <h2 className="text-xl sm:text-2xl font-black text-black">
-              Pak Yono, hari ini masak menu apa?
+              Pak Yono, hari ini makan apa?
             </h2>
             <p className="mt-1 text-sm font-semibold text-black/80">
-              Pilih menu cepat di bawah atau tulis menu sendiri untuk hari ini ({dateDisplay}).
+              Cukup klik salah satu pilihan warung / menu di bawah ini.
             </p>
           </div>
 
-          <form action={formAction} className="mt-4 flex flex-col gap-5">
+          <form action={formAction} className="mt-4 flex flex-col gap-4">
             <input type="hidden" name="dateKey" value={dateKey} />
 
-            {/* Quick Menu Preset Buttons from Admin */}
-            {parsedPresets.length > 0 && (
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider text-black mb-2">
-                  PILIHAN MENU CEPAT:
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {/* Quick Menu Preset Cards from Admin */}
+            {parsedPresets.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {parsedPresets.map((preset) => {
                     const isSelected = dish.trim().toLowerCase() === preset.name.trim().toLowerCase();
-                    const label = preset.warung || preset.name;
+                    const warungName = preset.warung || preset.name;
+
                     return (
                       <button
                         key={preset.name}
                         type="button"
                         onClick={() => handleSelectPreset(preset)}
-                        className={`border-2 border-black p-3 text-left transition-all cursor-pointer min-h-[48px] flex items-center justify-between gap-2 ${
+                        className={`w-full text-left p-4 sm:p-5 border-3 border-black transition-all cursor-pointer flex items-center justify-between gap-3 min-h-[68px] sm:min-h-[76px] relative ${
                           isSelected
-                            ? "bg-black text-white shadow-[3px_3px_0px_#fdc800] -translate-y-0.5"
-                            : "bg-white hover:bg-amber-100 text-black shadow-[2px_2px_0px_#000]"
+                            ? "bg-[#181818] text-white shadow-[4px_4px_0px_#22c55e] -translate-y-1"
+                            : "bg-white hover:bg-amber-50 text-black shadow-[3px_3px_0px_#000] hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_#000]"
                         }`}
                         aria-pressed={isSelected}
-                        title={preset.name ? `Menu: ${preset.name}` : undefined}
                       >
-                        <span className="font-black text-sm sm:text-base leading-snug">
-                          {label}
-                        </span>
-                        {isSelected && <span className="text-xs font-extrabold text-[var(--primary)] shrink-0">✓</span>}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span
+                            className={`text-xl sm:text-2xl p-2 border-2 border-black shadow-[2px_2px_0px_#000] shrink-0 ${
+                              isSelected ? "bg-[#22c55e] text-black" : "bg-amber-300 text-black"
+                            }`}
+                          >
+                            🏪
+                          </span>
+                          <div className="min-w-0">
+                            <h3 className="font-black text-base sm:text-lg leading-tight truncate">
+                              {warungName}
+                            </h3>
+                          </div>
+                        </div>
+
+                        {isSelected ? (
+                          <span className="bg-[#22c55e] text-black text-xs sm:text-sm font-black px-2.5 py-1 border-2 border-black shadow-[2px_2px_0px_#000] shrink-0">
+                            ✓ Terpilih
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold text-stone-600 border border-black bg-stone-100 px-2.5 py-1 shadow-[1px_1px_0px_#000] shrink-0">
+                            Pilih
+                          </span>
+                        )}
                       </button>
                     );
                   })}
                 </div>
               </div>
-            )}
-
-            {/* Sub-menu / Varian indicator if selected preset has sub-dishes */}
-            {currentSubDishesList.length > 0 && (
-              <div className="border-2 border-black bg-emerald-100 p-3 shadow-[2px_2px_0px_#000]">
-                <p className="text-xs font-black uppercase tracking-wider text-emerald-950 mb-1.5">
-                  Varian / Sub-menu Terpilih:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {currentSubDishesList.map((sub) => (
-                    <span
-                      key={sub}
-                      className="border-2 border-black bg-white px-2.5 py-1 text-xs font-black shadow-[1px_1px_0px_#000]"
-                    >
-                      ✓ {sub}
-                    </span>
-                  ))}
-                </div>
+            ) : (
+              <div className="border-2 border-black bg-amber-50 p-3 text-sm font-bold text-stone-700">
+                Belum ada daftar menu bawaan dari Admin. Silakan tambahkan di halaman Pengaturan atau tulis menu manual di bawah.
               </div>
             )}
 
-            {/* Custom Dish Text Input */}
-            <div>
-              <Label htmlFor="yono-dish-input" className="text-xs font-black uppercase tracking-wider text-black">
-                ATAU TULIS MENU SENDIRI:
-              </Label>
-              <Input
-                id="yono-dish-input"
-                name="dish"
-                required
-                placeholder="contoh: Sop Buntut, Ayam Bakar Lengkuas"
-                value={dish}
-                onChange={(e) => setDish(e.target.value)}
-                className="text-base sm:text-lg font-bold min-h-[50px] border-2 border-black shadow-[2px_2px_0px_#000] bg-white"
-              />
-            </div>
+            {/* Menu Terpilih Summary Banner */}
+            {dish.trim() ? (
+              <div className="border-3 border-black bg-emerald-100 p-3.5 sm:p-4 shadow-[3px_3px_0px_#000] flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2 border-b border-black/20 pb-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 border border-black inline-block animate-pulse"></span>
+                    Detail Menu yang Dipilih:
+                  </span>
+                  {selectedPreset?.warung && (
+                    <span className="text-xs font-black uppercase bg-amber-300 border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]">
+                      🏪 {selectedPreset.warung}
+                    </span>
+                  )}
+                </div>
 
-            {/* Varian / Sub-menu Text Input (Optional) */}
-            <div>
-              <Label htmlFor="yono-subdishes-input" className="text-xs font-black uppercase tracking-wider text-black">
-                Pilihan Varian / Sub-menu (opsional, pisahkan koma):
-              </Label>
-              <Input
-                id="yono-subdishes-input"
-                name="subDishes"
-                placeholder="contoh: Bakmi Goreng, Bakmi Godhog, Nasi Goreng"
-                value={subDishes}
-                onChange={(e) => setSubDishes(e.target.value)}
-                className="text-sm border-2 border-black bg-white"
-              />
-            </div>
+                <div>
+                  <p className="text-xs font-bold uppercase text-emerald-900/80">Menu Masakan:</p>
+                  <p className="text-lg sm:text-xl font-black text-black">
+                    {dish}
+                  </p>
+                </div>
 
-            {/* Notes Input (Optional) */}
-            <div>
-              <Label htmlFor="yono-note-input" className="text-xs font-black uppercase tracking-wider text-black">
-                Catatan Masakan Pak Yono (opsional):
-              </Label>
-              <Input
-                id="yono-note-input"
-                name="menuNote"
-                placeholder="contoh: Sudah termasuk lalapan dan sambal terasi"
-                value={menuNote}
-                onChange={(e) => setMenuNote(e.target.value)}
-                className="text-sm border-2 border-black bg-white"
-              />
-            </div>
+                {currentSubDishesList.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                    <span className="text-xs font-bold text-emerald-950 mr-1">
+                      Pilihan varian:
+                    </span>
+                    {currentSubDishesList.map((sub) => (
+                      <span
+                        key={sub}
+                        className="text-xs font-bold bg-white border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]"
+                      >
+                        ✓ {sub}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {menuNote && (
+                  <p className="text-xs font-semibold text-stone-700 italic mt-0.5 bg-white/70 p-2 border border-black/20">
+                    Catatan: {menuNote}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-black/50 bg-stone-100/80 p-4 text-center text-sm font-bold text-stone-600">
+                👆 Silakan klik salah satu pilihan warung di atas
+              </div>
+            )}
 
             {menuFormState.error && (
               <p className="border-2 border-black bg-red-100 p-2.5 text-sm font-bold text-[var(--danger)]">
@@ -245,19 +263,18 @@ export function YonoSlideDashboard({
               </p>
             )}
 
-            {/* Bottom Navigation Buttons */}
-            <div className="mt-2 flex flex-col gap-2.5 border-t-2 border-black pt-4">
+            {/* Bottom Action Button */}
+            <div className="flex flex-col gap-2.5 border-t-2 border-black pt-3">
               <Button
                 type="submit"
-                variant="primary"
                 disabled={menuPending || !dish.trim()}
-                className="w-full min-h-[54px] text-base sm:text-lg font-black shadow-[4px_4px_0px_#000] border-2 border-black active:translate-y-0.5"
+                className="w-full min-h-[58px] text-base sm:text-lg font-black shadow-[4px_4px_0px_#000] border-3 border-black active:translate-y-1 !bg-[#22c55e] hover:!bg-[#16a34a] !text-black disabled:!bg-stone-300 disabled:!text-stone-600 disabled:opacity-60 cursor-pointer"
               >
                 {menuPending
                   ? "Menyimpan Menu..."
                   : menu?.dish
-                    ? "Perbarui Menu & Lanjut ke Rekap →"
-                    : "Simpan & Lanjut ke Rekap Pesanan →"}
+                    ? "✓ Perbarui Menu & Buka Rekap Pesanan →"
+                    : "🚀 Simpan Menu & Buka Rekap Pesanan →"}
               </Button>
 
               {menu && (
@@ -265,12 +282,66 @@ export function YonoSlideDashboard({
                   type="button"
                   variant="ghost"
                   onClick={() => setActiveStep(2)}
-                  className="w-full min-h-[48px] text-sm font-black border-2 border-black shadow-[2px_2px_0px_#000] bg-white hover:bg-stone-50"
+                  className="w-full min-h-[46px] text-sm font-black border-2 border-black shadow-[2px_2px_0px_#000] bg-white hover:bg-stone-50"
                 >
-                  Lihat Rekap Pesanan & WhatsApp →
+                  Kembali ke Rekap Pesanan & WhatsApp →
                 </Button>
               )}
             </div>
+
+            {/* Discreet Collapsible Accordion for Manual Editing (Only if needed) */}
+            <details
+              open={parsedPresets.length === 0}
+              className="mt-1 border-2 border-dashed border-black/40 bg-white/70 p-3 rounded text-left"
+            >
+              <summary className="text-xs font-bold text-stone-600 cursor-pointer select-none hover:text-black">
+                ⚙️ Opsi Manual: Ingin tulis menu sendiri di luar daftar template?
+              </summary>
+              <div className="mt-3 flex flex-col gap-3 pt-3 border-t border-stone-200">
+                <div>
+                  <Label htmlFor="yono-dish-input" className="text-xs font-bold uppercase text-black">
+                    Nama Menu Masakan:
+                  </Label>
+                  <Input
+                    id="yono-dish-input"
+                    name="dish"
+                    required
+                    placeholder="contoh: Sop Buntut, Ayam Bakar Lengkuas"
+                    value={dish}
+                    onChange={(e) => setDish(e.target.value)}
+                    className="text-sm font-bold min-h-[44px] border-2 border-black bg-white"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="yono-subdishes-input" className="text-xs font-bold uppercase text-black">
+                    Pilihan Varian / Sub-menu (opsional, pisahkan koma):
+                  </Label>
+                  <Input
+                    id="yono-subdishes-input"
+                    name="subDishes"
+                    placeholder="contoh: Bakmi Goreng, Bakmi Godhog, Nasi Goreng"
+                    value={subDishes}
+                    onChange={(e) => setSubDishes(e.target.value)}
+                    className="text-sm border-2 border-black bg-white"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="yono-note-input" className="text-xs font-bold uppercase text-black">
+                    Catatan Masakan Pak Yono (opsional):
+                  </Label>
+                  <Input
+                    id="yono-note-input"
+                    name="menuNote"
+                    placeholder="contoh: Sudah termasuk lalapan dan sambal terasi"
+                    value={menuNote}
+                    onChange={(e) => setMenuNote(e.target.value)}
+                    className="text-sm border-2 border-black bg-white"
+                  />
+                </div>
+              </div>
+            </details>
           </form>
         </Card>
       )}
@@ -283,9 +354,16 @@ export function YonoSlideDashboard({
           {/* Menu Info Banner with Auto-Cutoff Info */}
           <div className="border-3 border-black bg-amber-100 p-4 shadow-[4px_4px_0px_#000] flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Menu Hari Ini ({dateDisplay}):
-              </p>
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Menu Hari Ini ({dateDisplay}):
+                </span>
+                {selectedPreset?.warung && (
+                  <span className="text-[11px] font-black uppercase bg-amber-300 border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]">
+                    {selectedPreset.warung}
+                  </span>
+                )}
+              </div>
               <h2 className="text-xl sm:text-2xl font-black text-black">
                 {menu.dish}
               </h2>
