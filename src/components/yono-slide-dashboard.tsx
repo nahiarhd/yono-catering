@@ -165,37 +165,40 @@ export function YonoSlideDashboard({
                         key={preset.name}
                         type="button"
                         onClick={() => handleSelectPreset(preset)}
-                        className={`w-full text-left p-4 sm:p-5 border-3 border-black transition-all cursor-pointer flex items-center justify-between gap-3 min-h-[68px] sm:min-h-[76px] relative ${
+                        className={`w-full text-left p-3.5 sm:p-4 border-3 border-black transition-all cursor-pointer flex flex-col justify-between gap-2.5 min-h-[96px] relative ${
                           isSelected
                             ? "bg-[#181818] text-white shadow-[4px_4px_0px_#22c55e] -translate-y-1"
                             : "bg-white hover:bg-amber-50 text-black shadow-[3px_3px_0px_#000] hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_#000]"
                         }`}
                         aria-pressed={isSelected}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center justify-between gap-2 w-full">
                           <span
-                            className={`text-xl sm:text-2xl p-2 border-2 border-black shadow-[2px_2px_0px_#000] shrink-0 ${
+                            className={`text-[11px] font-black uppercase tracking-wider px-2 py-0.5 border border-black shadow-[1px_1px_0px_#000] flex items-center gap-1 ${
                               isSelected ? "bg-[#22c55e] text-black" : "bg-amber-300 text-black"
                             }`}
                           >
-                            🏪
+                            🏪 Warung
                           </span>
-                          <div className="min-w-0">
-                            <h3 className="font-black text-base sm:text-lg leading-tight truncate">
-                              {warungName}
-                            </h3>
-                          </div>
+
+                          {isSelected ? (
+                            <span className="bg-[#22c55e] text-black text-xs font-black px-2 py-0.5 border border-black shadow-[1px_1px_0px_#000] shrink-0">
+                              ✓ Terpilih
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-bold text-stone-600 border border-black bg-stone-100 px-2 py-0.5 shadow-[1px_1px_0px_#000] shrink-0">
+                              Pilih
+                            </span>
+                          )}
                         </div>
 
-                        {isSelected ? (
-                          <span className="bg-[#22c55e] text-black text-xs sm:text-sm font-black px-2.5 py-1 border-2 border-black shadow-[2px_2px_0px_#000] shrink-0">
-                            ✓ Terpilih
-                          </span>
-                        ) : (
-                          <span className="text-xs font-bold text-stone-600 border border-black bg-stone-100 px-2.5 py-1 shadow-[1px_1px_0px_#000] shrink-0">
-                            Pilih
-                          </span>
-                        )}
+                        <h3
+                          className={`font-black text-base sm:text-lg leading-snug break-words mt-1 ${
+                            isSelected ? "text-white" : "text-black"
+                          }`}
+                        >
+                          {warungName}
+                        </h3>
                       </button>
                     );
                   })}
