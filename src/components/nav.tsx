@@ -27,12 +27,6 @@ export function AppNav({ role }: { role: Role }) {
 
   return (
     <nav className="flex flex-wrap gap-2" aria-label="Navigasi Utama">
-      {role === "yono" && (
-        <>
-          <NavLink href="/yono">{t.kitchen}</NavLink>
-          <NavLink href="/settings">{t.settings}</NavLink>
-        </>
-      )}
 
       {role === "admin" && (
         <>

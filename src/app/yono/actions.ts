@@ -35,7 +35,7 @@ export async function postMenuAction(
   const subDishes = subDishesList.length > 0 ? formatSubDishes(subDishesList) : null;
   const menuNote = String(formData.get("menuNote") ?? "").trim() || null;
   const cutoffRaw = String(formData.get("cutoffOverride") ?? "").trim();
-  const cutoffOverride = cutoffRaw ? cutoffRaw : null;
+  const cutoffOverride = cutoffRaw ? cutoffRaw : "18:00";
 
   if (!dateKey || dateKey < todayKey()) return { error: id.errors.missingDay };
   if (!dish) return { error: id.errors.dishRequired };
@@ -45,7 +45,7 @@ export async function postMenuAction(
 
   const settings = await getSettings();
   const existing = await getMenuDay(dateKey);
-  const menu = await upsertMenu({
+  await upsertMenu({
     dateKey,
     dish,
     subDishes,
@@ -85,7 +85,8 @@ export async function postMenuAction(
     }
   }
 
-  void menu;
+  revalidatePath("/yono");
+  revalidatePath("/home");
   return { ok: true };
 }
 

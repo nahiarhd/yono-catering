@@ -72,15 +72,18 @@ export function Label({
   children,
   htmlFor,
   onDark,
+  className = "",
 }: {
   children: ReactNode;
   htmlFor?: string;
   onDark?: boolean;
+  className?: string;
 }) {
+  const base = onDark ? "neo-label neo-label--on-dark" : "neo-label";
   return (
     <label
       htmlFor={htmlFor}
-      className={onDark ? "neo-label neo-label--on-dark" : "neo-label"}
+      className={className ? `${base} ${className}` : base}
     >
       {children}
     </label>

@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requireYono } from "@/lib/auth";
 import { todayKey, formatDisplayDate } from "@/lib/dates";
 import { effectiveCutoff } from "@/lib/cutoff";
@@ -8,27 +7,13 @@ import { buildTally } from "@/lib/tally";
 import { buildWhatsAppMessage, buildWhatsAppUrl, type WhatsAppOrder } from "@/lib/whatsapp";
 import { id } from "@/lib/id";
 import { db } from "@/lib/db";
-import { postMenuAction } from "./actions";
-import { parseSubDishes } from "@/lib/dishes";
-import { PageShell, Card } from "@/components/ui";
+import { PageShell } from "@/components/ui";
 import { AppNav } from "@/components/nav";
-import { DatePicker } from "@/components/date-picker";
-import { MenuForm } from "@/components/menu-form";
-import { WhatsAppShareCard } from "@/components/whatsapp-share";
-import { PendingMembersList } from "@/components/pending-members-list";
+import { YonoSlideDashboard } from "@/components/yono-slide-dashboard";
 
-export default async function YonoHomePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ date?: string }>;
-}) {
+export default async function YonoHomePage() {
   const user = await requireYono();
-  const params = await searchParams;
-  const today = todayKey();
-  if (params.date && params.date < today) {
-    redirect("/yono");
-  }
-  const dateKey = params.date ?? today;
+  const dateKey = todayKey();
   const [{ settings, menu, locked }, defaultDishes, eaters] = await Promise.all([
     getMenuDay(dateKey),
     getDefaultDishes(),
@@ -49,8 +34,6 @@ export default async function YonoHomePage({
   const respondedUserIds = new Set(nonYonoResponses.map((r) => r.userId));
   const pendingUsers = eaters.filter((e) => !respondedUserIds.has(e.id));
   const pendingMembers = pendingUsers.map((e) => e.name);
-
-  const isAllAnswered = eaters.length > 0 && pendingMembers.length === 0;
 
   const eatingOrders: WhatsAppOrder[] = nonYonoResponses
     .filter((r) => r.wants)
@@ -96,155 +79,32 @@ export default async function YonoHomePage({
       title={`${t.kitchen} · ${formatDisplayDate(dateKey)}`}
       nav={<AppNav role={user.role} />}
     >
-      <DatePicker key={dateKey} value={dateKey} todayKey={todayKey()} basePath="/yono" />
-
-      <MenuForm
-        action={postMenuAction}
+      <YonoSlideDashboard
+        key={dateKey}
         dateKey={dateKey}
-        defaultDishes={defaultDishes}
-        initial={
+        dateDisplay={formatDisplayDate(dateKey)}
+        menu={
           menu
             ? {
+                id: menu.id,
                 dish: menu.dish,
                 subDishes: menu.subDishes,
                 note: menu.note,
                 cutoffOverride: menu.cutoffOverride,
               }
-            : undefined
+            : null
         }
+        locked={locked}
+        defaultDishes={defaultDishes}
+        eaters={eaters}
+        tally={tally}
+        eatingOrders={eatingOrders}
+        notEatingOrders={notEatingOrders}
+        pendingUsers={pendingUsers}
+        cutoffText={cutoffText}
+        waMessage={waMessage}
+        waUrl={waUrl}
       />
-
-      {menu ? (
-        <>
-          <Card>
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="neo-label text-base">{t.liveTally}</h2>
-              <span className="text-xs font-bold text-[var(--text-muted)]">
-                {t.cutoff}: {cutoffText} {locked ? `· ${t.locked}` : `· ${t.open}`}
-              </span>
-            </div>
-
-            <div className="mt-3">
-              {isAllAnswered ? (
-                <div className="border-2 border-black bg-[var(--primary)] p-3 text-sm font-black flex items-center justify-between">
-                  <span>✓ {t.allAnswered}</span>
-                  <span className="text-xs border-2 border-black bg-black text-white px-2 py-0.5 uppercase">
-                    Lengkap ({orders.length}/{eaters.length})
-                  </span>
-                </div>
-              ) : (
-                <div className="border-2 border-black bg-[var(--surface-sunken)] p-3 text-sm font-extrabold flex items-center justify-between">
-                  <span>⏳ {t.partialAnswered(orders.length, eaters.length)}</span>
-                  <span className="text-xs border-2 border-black bg-white px-2 py-0.5 uppercase">
-                    {pendingMembers.length} Belum
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-4">
-              <p className="neo-label text-xs">{t.portionBreakdown}</p>
-              {tally && tally.breakdown.length > 0 ? (
-                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {tally.breakdown.map((item) => (
-                    <div
-                      key={item.dish}
-                      className="border-2 border-black bg-white p-2.5 flex justify-between items-center font-bold"
-                    >
-                      <span className="text-sm">{item.dish}</span>
-                      <span className="border-2 border-black bg-[var(--primary)] px-2 py-0.5 text-xs font-black">
-                        {item.count} porsi
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-1 text-sm italic text-[var(--text-muted)]">Belum ada pesanan.</p>
-              )}
-              <p className="mt-2 text-right text-sm font-black">
-                {t.totalPortions(tally?.total ?? 0)}
-              </p>
-            </div>
-
-            <div className="mt-4 border-t-2 border-black pt-4">
-              <p className="neo-label text-xs">{t.ordersList} ({eatingOrders.length} orang)</p>
-              {eatingOrders.length > 0 ? (
-                <ol className="mt-2 space-y-2">
-                  {eatingOrders.map((o, idx) => (
-                    <li
-                      key={o.name}
-                      className="border-2 border-black bg-[var(--surface-sunken)] p-2.5 text-sm font-semibold flex flex-col gap-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-extrabold">
-                          {idx + 1}. {o.name}
-                        </span>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {o.dish && o.dish !== menu!.dish && (
-                            <span className="text-xs border-2 border-black px-1.5 py-0.5 font-bold bg-amber-100">
-                              {o.dish}
-                            </span>
-                          )}
-                          <span className="text-xs border-2 border-black px-1.5 py-0.5 font-bold bg-emerald-200">
-                            {t.mainDishLabel}
-                          </span>
-                        </div>
-                      </div>
-                      {o.note && (
-                        <p className="text-xs text-[var(--text-muted)] italic font-normal">
-                          Catatan: {o.note}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="mt-2 text-sm italic text-[var(--text-muted)]">
-                  Belum ada yang memilih ikut makan.
-                </p>
-              )}
-            </div>
-
-            {notEatingOrders.length > 0 && (
-              <div className="mt-4 border-t-2 border-black pt-4">
-                <p className="neo-label text-xs text-[var(--text-muted)]">
-                  {t.notEatingList} ({notEatingOrders.length} orang)
-                </p>
-                <ul className="mt-2 flex flex-wrap gap-1.5">
-                  {notEatingOrders.map((o) => (
-                    <li
-                      key={o.name}
-                      className="border-2 border-black bg-stone-100 px-2 py-0.5 text-xs font-bold"
-                    >
-                      {o.name}{o.note ? ` (${o.note})` : ""}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {pendingUsers.length > 0 && (
-              <PendingMembersList
-                dateKey={dateKey}
-                menuDish={menu.dish}
-                subDishes={parseSubDishes(menu.subDishes)}
-                pendingUsers={pendingUsers}
-              />
-            )}
-          </Card>
-
-          <WhatsAppShareCard
-            message={waMessage}
-            whatsappUrl={waUrl}
-            totalOrders={orders.length}
-          />
-        </>
-      ) : (
-        <Card>
-          <p className="neo-label">{t.liveTally}</p>
-          <p className="mt-2 font-bold">{t.emptyTally}</p>
-        </Card>
-      )}
     </PageShell>
   );
 }
