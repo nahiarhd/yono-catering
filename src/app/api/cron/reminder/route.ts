@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { deletePastMenus } from "@/lib/menu-data";
 import { checkAndSendReminders } from "@/lib/reminder-service";
 
 export async function GET(request: Request) {
@@ -17,7 +16,6 @@ export async function GET(request: Request) {
   const force = url.searchParams.get("force") === "true";
 
   try {
-    await deletePastMenus();
     const result = await checkAndSendReminders({ force });
     return NextResponse.json(result);
   } catch (err) {

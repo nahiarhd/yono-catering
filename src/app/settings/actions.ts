@@ -7,6 +7,7 @@ import { parseHHMM } from "@/lib/cutoff";
 import { normalizeDishKey, parseDefaultDishes, parseSubDishes, formatSubDishes } from "@/lib/dishes";
 import { todayKey, parseDateKey } from "@/lib/dates";
 import { getSettings } from "@/lib/settings";
+import { broadcastRealtime } from "@/lib/realtime";
 import { id } from "@/lib/id";
 
 export type ActionState = { error?: string; ok?: boolean; message?: string };
@@ -78,6 +79,7 @@ export async function updateSettingsAction(
   revalidatePath("/settings");
   revalidatePath("/home");
   revalidatePath("/yono");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 
@@ -113,6 +115,7 @@ export async function addDefaultDishAction(
   revalidatePath("/yono");
   revalidatePath("/home");
   revalidatePath("/preferences");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 
@@ -194,6 +197,7 @@ export async function updateDefaultDishAction(
   revalidatePath("/yono");
   revalidatePath("/home");
   revalidatePath("/preferences");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 
@@ -222,6 +226,7 @@ export async function removeDefaultDishAction(
   revalidatePath("/yono");
   revalidatePath("/home");
   revalidatePath("/preferences");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 

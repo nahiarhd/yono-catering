@@ -19,6 +19,7 @@ import {
 } from "@/lib/telegram";
 
 import { parseSubDishes, formatSubDishes, computeSelectionDish } from "@/lib/dishes";
+import { broadcastRealtime } from "@/lib/realtime";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -92,6 +93,7 @@ export async function postMenuAction(
 
   revalidatePath("/yono");
   revalidatePath("/home");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 
@@ -263,5 +265,6 @@ export async function recordMemberResponseAction(
 
   revalidatePath("/yono");
   revalidatePath("/home");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { parseSubDishes } from "@/lib/dishes";
 import { id } from "@/lib/id";
-import { Button, Card } from "./ui";
+import { Button, Card, Input } from "./ui";
 
 type State = { error?: string; ok?: boolean };
 
@@ -86,6 +86,12 @@ export function ResponseForm({
         ? prev.filter((a) => a !== addon)
         : [...prev, addon]
     );
+  }
+
+  const [note, setNote] = useState(initial?.note ?? "");
+
+  function toggleNotePreset(preset: string) {
+    setNote((current) => (current === preset ? "" : preset));
   }
 
   useEffect(() => {
@@ -277,7 +283,37 @@ export function ResponseForm({
           </fieldset>
         )}
 
-        <input type="hidden" name="note" value="" />
+        <div className="neo-response-notes">
+          <p className="neo-response-notes-label">{t.noteLabel}</p>
+          {wants && (
+            <>
+              <p className="neo-response-notes-quick">{t.noteQuick}</p>
+              <div className="neo-response-note-chips">
+                {t.notePresets.map((preset) => {
+                  const selected = note === preset;
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={`neo-response-note-chip${selected ? " neo-response-note-chip--selected" : ""}`}
+                      onClick={() => toggleNotePreset(preset)}
+                      aria-pressed={selected}
+                    >
+                      {preset}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          <Input
+            id="note"
+            name="note"
+            placeholder={t.notePlaceholder}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </div>
 
         <label className="neo-pref-save-toggle">
           <input

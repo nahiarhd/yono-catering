@@ -7,6 +7,7 @@ import { getMenuDay } from "@/lib/menu-data";
 import { normalizeDishKey, parseSubDishes } from "@/lib/dishes";
 import { upsertDishPreference } from "@/lib/preferences";
 import { todayKey } from "@/lib/dates";
+import { broadcastRealtime } from "@/lib/realtime";
 import { id } from "@/lib/id";
 
 export type ActionState = { error?: string; ok?: boolean };
@@ -82,6 +83,7 @@ export async function submitResponseAction(
   }
 
   revalidatePath("/home");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 
@@ -99,6 +101,7 @@ export async function saveDishPreferenceAction(
 
   revalidatePath("/home");
   revalidatePath("/preferences");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 
@@ -116,5 +119,6 @@ export async function removeDishPreferenceAction(
 
   revalidatePath("/home");
   revalidatePath("/preferences");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }

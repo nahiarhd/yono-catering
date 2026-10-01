@@ -975,6 +975,7 @@ body {
   align-items: flex-start;
   gap: 4px;
   min-width: 0;
+  max-width: 100%;
   border: 2px solid var(--neo-black);
   background: #ffffff;
   color: var(--text);
@@ -1010,6 +1011,7 @@ body {
   font-size: 15px;
   font-weight: 900;
   line-height: 1.1;
+  word-break: break-word;
 }
 
 .neo-dish-chip-sub {
@@ -1017,6 +1019,7 @@ body {
   font-weight: 700;
   line-height: 1.25;
   color: var(--text-muted);
+  word-break: break-word;
 }
 
 .neo-dish-chip--selected .neo-dish-chip-sub {
@@ -1145,5 +1148,51 @@ body {
   .neo-response-choice:active,
   .neo-response-note-chip:hover {
     transform: none;
+  }
+}
+
+/* Print & PDF Export styles */
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 12px !important;
+  }
+
+  header,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+
+  .neo-card {
+    box-shadow: none !important;
+    border: 1.5px solid #222222 !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 14px !important;
+    background: #ffffff !important;
+  }
+
+  .neo-btn {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

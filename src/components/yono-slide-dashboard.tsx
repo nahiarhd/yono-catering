@@ -2,6 +2,7 @@
 
 import { useState, useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { id } from "@/lib/id";
 import type { DefaultDish } from "@/lib/dishes";
 import { parseSubDishes, computeSelectionDish } from "@/lib/dishes";
@@ -492,7 +493,7 @@ export function YonoSlideDashboard({
               </span>
             </div>
 
-            {/* Quick Action Buttons: Send to WA & Copy */}
+            {/* Quick Action Buttons: Send to WA & Copy & Export PDF */}
             <div className="mt-4 flex flex-col sm:flex-row gap-2.5">
               <a
                 href={waUrl}
@@ -512,6 +513,13 @@ export function YonoSlideDashboard({
                 <span>📋</span>
                 <span>{copiedWa ? tWa.copied : tWa.copyButton}</span>
               </Button>
+              <Link
+                href="/reports"
+                className="neo-btn flex-1 font-extrabold min-h-[52px] text-sm border-2 border-black shadow-[3px_3px_0px_#000] bg-white hover:bg-stone-50 text-center"
+              >
+                <span>📄</span>
+                <span>{id.reports.title}</span>
+              </Link>
             </div>
 
             <div aria-live="polite" className="sr-only">
@@ -785,6 +793,8 @@ function RecordResponseModal({
   const [selectedDish, setSelectedDish] = useState(parsedDishes.length === 1 ? parsedDishes[0] : "");
   const [selectedSubDish, setSelectedSubDish] = useState(subDishes.length === 1 ? subDishes[0] : "");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const [note, setNote] = useState("");
+  const notePresets = id.response.notePresets;
   const t = id.yono;
 
   function toggleAddOn(addon: string) {
@@ -1014,8 +1024,44 @@ function RecordResponseModal({
             </div>
           )}
 
-          {/* Hidden Note for compatibility */}
-          <input type="hidden" name="note" value="" />
+          {/* Optional Note */}
+          <div>
+            <label
+              htmlFor="modal-note"
+              className="block text-xs font-black uppercase tracking-wider text-[var(--text-muted)] mb-1"
+            >
+              {id.response.noteLabel}
+            </label>
+            <Input
+              id="modal-note"
+              name="note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="contoh: pedas, bungkus, tanpa sayur"
+              className="w-full text-sm min-h-[44px]"
+            />
+
+            {/* Quick Note Presets */}
+            {wants && (
+              <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+                <span className="text-[11px] font-bold text-[var(--text-muted)]">
+                  {id.response.noteQuick}
+                </span>
+                {notePresets.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() =>
+                      setNote((prev) => (prev ? `${prev}, ${preset}` : preset))
+                    }
+                    className="border border-black bg-stone-100 hover:bg-stone-200 px-2 py-1 text-xs font-bold cursor-pointer"
+                  >
+                    +{preset}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {state?.error && (
             <p className="border-2 border-black bg-red-100 p-2 text-xs font-bold text-[var(--danger)]">

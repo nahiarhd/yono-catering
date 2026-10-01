@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireStrictAdmin, hashPin } from "@/lib/auth";
+import { broadcastRealtime } from "@/lib/realtime";
 import { id } from "@/lib/id";
 
 export type ActionState = { error?: string; ok?: boolean };
@@ -39,6 +40,7 @@ export async function addMemberAction(
 
   revalidatePath("/users");
   revalidatePath("/settings");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 
@@ -70,6 +72,7 @@ export async function updateTelegramIdAction(
   });
 
   revalidatePath("/users");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 
@@ -99,6 +102,7 @@ export async function updateRoleAction(
   });
 
   revalidatePath("/users");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 
@@ -122,6 +126,7 @@ export async function resetPinAction(
   });
 
   revalidatePath("/users");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }
 
@@ -142,5 +147,6 @@ export async function removeMemberAction(
 
   await db.user.delete({ where: { id: memberId } });
   revalidatePath("/users");
+  broadcastRealtime("revalidate");
   return { ok: true };
 }

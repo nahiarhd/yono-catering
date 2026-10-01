@@ -32,6 +32,7 @@ export function AppNav({ role }: { role: Role }) {
         <>
           <NavLink href="/home">{t.home}</NavLink>
           <NavLink href="/yono">{t.kitchen}</NavLink>
+          <NavLink href="/reports">{t.reports}</NavLink>
           <NavLink href="/preferences">{t.preferences}</NavLink>
           <NavLink href="/users">{t.users}</NavLink>
           <NavLink href="/settings">{t.settings}</NavLink>
@@ -41,6 +42,7 @@ export function AppNav({ role }: { role: Role }) {
       {role === "yono" && (
         <>
           <NavLink href="/yono">{t.kitchen}</NavLink>
+          <NavLink href="/reports">{t.reports}</NavLink>
           <NavLink href="/settings">{t.settings}</NavLink>
         </>
       )}

@@ -47,6 +47,23 @@ export default async function SettingsPage() {
           />
 
           <DefaultDishesForm dishes={defaultDishes} />
+
+          <Card>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="neo-label">{id.reports.title}</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)] font-medium">
+                  {id.reports.subtitle}
+                </p>
+              </div>
+              <Link
+                href="/reports"
+                className="neo-btn neo-btn-primary text-sm whitespace-nowrap min-h-[44px]"
+              >
+                {id.reports.title} →
+              </Link>
+            </div>
+          </Card>
         </>
       )}
 

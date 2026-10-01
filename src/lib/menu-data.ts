@@ -1,29 +1,14 @@
 import { db } from "./db";
 import { getSettings } from "./settings";
 import { isResponsesLocked, menuDateToKey } from "./cutoff";
-import { parseDateKey, todayKey } from "./dates";
+import { parseDateKey } from "./dates";
 
-export async function deletePastMenus(minDateKey: string = todayKey()) {
-  const minDate = parseDateKey(minDateKey);
-  const pastMenus = await db.menu.findMany({
-    where: { date: { lt: minDate } },
-    select: { id: true },
-  });
-
-  if (pastMenus.length > 0) {
-    const pastIds = pastMenus.map((m) => m.id);
-    await db.response.deleteMany({
-      where: { menuId: { in: pastIds } },
-    });
-    await db.menu.deleteMany({
-      where: { id: { in: pastIds } },
-    });
-  }
+// Preserves full history across app lifetime as requested
+export async function deletePastMenus(_minDateKey?: string) {
+  void _minDateKey;
 }
 
 export async function getMenuDay(dateKey: string) {
-  await deletePastMenus();
-
   const settings = await getSettings();
   const menu = await db.menu.findUnique({
     where: { date: parseDateKey(dateKey) },

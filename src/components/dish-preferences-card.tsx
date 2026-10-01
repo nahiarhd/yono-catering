@@ -8,7 +8,7 @@ import {
 } from "@/app/home/actions";
 import { normalizeDishKey, type DefaultDish } from "@/lib/dishes";
 import { id } from "@/lib/id";
-import { Button, Card } from "./ui";
+import { Button, Card, Input } from "./ui";
 
 type Pref = {
   forDish: string;
@@ -72,7 +72,10 @@ export function DishPreferencesCard({
               aria-pressed={selected}
             >
               {warung && (
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block truncate">
+                <span
+                  className="text-[10px] font-black uppercase tracking-wider text-amber-800 block w-full truncate"
+                  title={warung}
+                >
                   {warung}
                 </span>
               )}
@@ -108,16 +111,18 @@ function DishPreferenceEditor({
   initial?: Pref;
 }) {
   const t = id.preferences;
+  const rt = id.response;
   const [saveState, saveAction, savePending] = useActionState(saveDishPreferenceAction, {});
   const [removeState, removeAction, removePending] = useActionState(removeDishPreferenceAction, {});
 
   const [wants, setWants] = useState(initial?.wants !== false);
   const [subDish, setSubDish] = useState(initial?.swapDish ?? "");
+  const [note, setNote] = useState(initial?.note ?? "");
 
   return (
     <div className="neo-pref-editor">
       {warung && (
-        <span className="text-[11px] font-black uppercase tracking-wider bg-amber-200 border border-black px-1.5 py-0.5 shadow-[1px_1px_0px_#000] mb-1.5 inline-block">
+        <span className="text-[11px] font-black uppercase tracking-wider bg-amber-200 border border-black px-1.5 py-0.5 shadow-[1px_1px_0px_#000] mb-1.5 inline-block max-w-full break-words">
           {warung}
         </span>
       )}
@@ -175,7 +180,31 @@ function DishPreferenceEditor({
           </div>
         )}
 
-        <input type="hidden" name="note" value="" />
+        <div className="neo-response-notes">
+          <p className="neo-response-notes-label">{rt.noteLabel}</p>
+          <div className="neo-response-note-chips">
+            {rt.notePresets.map((preset) => {
+              const selected = note === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  className={`neo-response-note-chip${selected ? " neo-response-note-chip--selected" : ""}`}
+                  onClick={() => setNote((c) => (c === preset ? "" : preset))}
+                  aria-pressed={selected}
+                >
+                  {preset}
+                </button>
+              );
+            })}
+          </div>
+          <Input
+            name="note"
+            placeholder={rt.notePlaceholder}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </div>
 
         <ActionMessage state={saveState} ok={t.saved} />
         <Button type="submit" variant="primary" disabled={savePending} className="w-full">
