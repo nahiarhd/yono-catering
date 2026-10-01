@@ -20,12 +20,11 @@ function testAllAnswered() {
   assert.ok(msg.includes("*REKAP KATERING PAK YONO*"));
   assert.ok(msg.includes("Menu Utama: *Ayam Bakar Madu*"));
   assert.ok(msg.includes("Catatan Menu: Porsi ekstra sambal"));
-  assert.ok(msg.includes("• Ayam Bakar Madu: 2 porsi"));
+  assert.ok(msg.includes("• Ayam Bakar Madu [Catatan: Porsi banyak]: 1 porsi"));
+  assert.ok(msg.includes("• Ayam Bakar Madu: 1 porsi"));
   assert.ok(msg.includes("*Total: 2 porsi*"));
-  assert.ok(msg.includes("1. Raihan [Catatan: Porsi banyak]"));
-  assert.ok(msg.includes("2. Pak Yono"));
-  assert.ok(msg.includes("*TIDAK IKUT MAKAN (1 orang):*"));
-  assert.ok(msg.includes("• Iqbal [Catatan: Bawa bekal]"));
+  assert.ok(!msg.includes("DAFTAR IKUT MAKAN"));
+  assert.ok(!msg.includes("TIDAK IKUT MAKAN"));
   assert.ok(!msg.includes("BELUM MEMILIH"));
   assert.ok(!msg.includes("Batas Waktu"));
   assert.ok(!msg.includes("—"), "Must not contain em dash");
@@ -47,9 +46,11 @@ function testWithPendingMembers() {
     pendingMembers: ["Iqbal", "Budi"],
   });
 
-  assert.ok(msg.includes("*BELUM MEMILIH (2 orang):*"));
-  assert.ok(msg.includes("• Iqbal"));
-  assert.ok(msg.includes("• Budi"));
+  assert.ok(msg.includes("*REKAP KATERING PAK YONO*"));
+  assert.ok(msg.includes("• Bebek Goreng: 1 porsi"));
+  assert.ok(!msg.includes("DAFTAR IKUT MAKAN"));
+  assert.ok(!msg.includes("TIDAK IKUT MAKAN"));
+  assert.ok(!msg.includes("BELUM MEMILIH"));
   assert.ok(!msg.includes("—"), "Must not contain em dash");
 }
 
@@ -66,8 +67,9 @@ function testEmptyOrders() {
   });
 
   assert.ok(msg.includes("Belum ada pesanan masuk"));
-  assert.ok(msg.includes("(Belum ada yang ikut makan)"));
-  assert.ok(msg.includes("*BELUM MEMILIH (2 orang):*"));
+  assert.ok(!msg.includes("DAFTAR IKUT MAKAN"));
+  assert.ok(!msg.includes("TIDAK IKUT MAKAN"));
+  assert.ok(!msg.includes("BELUM MEMILIH"));
   assert.ok(!msg.includes("—"), "Must not contain em dash");
 }
 
@@ -90,11 +92,12 @@ function testWithSubDishes() {
     pendingMembers: [],
   });
 
-  assert.ok(msg.includes("• Bakmi Goreng: 2 porsi"));
-  assert.ok(msg.includes("• Nasi Goreng: 1 porsi"));
-  assert.ok(msg.includes("1. Raihan (Bakmi Goreng) [Catatan: Pedas]"));
-  assert.ok(msg.includes("2. Pram (Bakmi Goreng)"));
-  assert.ok(msg.includes("3. Iqbal (Nasi Goreng) [Catatan: Gak pedes]"));
+  assert.ok(msg.includes("• (Bakmi Goreng) [Catatan: Pedas]: 1 porsi"));
+  assert.ok(msg.includes("• (Bakmi Goreng): 1 porsi"));
+  assert.ok(msg.includes("• (Nasi Goreng) [Catatan: Gak pedes]: 1 porsi"));
+  assert.ok(!msg.includes("DAFTAR IKUT MAKAN"));
+  assert.ok(!msg.includes("TIDAK IKUT MAKAN"));
+  assert.ok(!msg.includes("BELUM MEMILIH"));
   assert.ok(!msg.includes("—"), "Must not contain em dash");
 }
 
@@ -120,8 +123,36 @@ function testWithAddOns() {
   assert.ok(msg.includes("*TAMBAHAN / ADD-ON:*"));
   assert.ok(msg.includes("• Telor Dadar: 2 porsi"));
   assert.ok(msg.includes("• Kerupuk: 1 porsi"));
-  assert.ok(msg.includes("1. Raihan [+ Telor Dadar, Kerupuk] [Catatan: Sambal banyak]"));
-  assert.ok(msg.includes("2. Pram [+ Telor Dadar]"));
+  assert.ok(msg.includes("• Ayam Geprek [+ Telor Dadar, Kerupuk] [Catatan: Sambal banyak]: 1 porsi"));
+  assert.ok(msg.includes("• Ayam Geprek [+ Telor Dadar]: 1 porsi"));
+  assert.ok(!msg.includes("DAFTAR IKUT MAKAN"));
+  assert.ok(!msg.includes("TIDAK IKUT MAKAN"));
+  assert.ok(!msg.includes("BELUM MEMILIH"));
+}
+
+function testUserExactScenario() {
+  const msg = buildWhatsAppMessage({
+    dateDisplay: "Kamis, 1 Oktober 2026",
+    dish: "Bakmi Jogja",
+    note: null,
+    cutoff: "08:00",
+    breakdown: [],
+    addOnBreakdown: [{ name: "Telor", count: 2 }],
+    totalPortions: 2,
+    orders: [
+      { name: "Given", dish: "Bakmi goreng (Tidak Pedas)", addOns: "Telor", wants: true, note: null },
+      { name: "Haq", dish: "Magelangan (Pedas)", addOns: "Telor", wants: true, note: null },
+    ],
+    pendingMembers: ["Hilmi"],
+  });
+
+  assert.ok(msg.includes("• (Bakmi goreng (Tidak Pedas)) [+ Telor]: 1 porsi"));
+  assert.ok(msg.includes("• (Magelangan (Pedas)) [+ Telor]: 1 porsi"));
+  assert.ok(msg.includes("*TAMBAHAN / ADD-ON:*"));
+  assert.ok(msg.includes("• Telor: 2 porsi"));
+  assert.ok(!msg.includes("DAFTAR IKUT MAKAN"));
+  assert.ok(!msg.includes("Given"));
+  assert.ok(!msg.includes("Hilmi"));
 }
 
 testAllAnswered();
@@ -129,4 +160,5 @@ testWithPendingMembers();
 testEmptyOrders();
 testWithSubDishes();
 testWithAddOns();
+testUserExactScenario();
 console.log("whatsapp.test.ts ok");

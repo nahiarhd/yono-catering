@@ -38,6 +38,13 @@ export function AppNav({ role }: { role: Role }) {
         </>
       )}
 
+      {role === "yono" && (
+        <>
+          <NavLink href="/yono">{t.kitchen}</NavLink>
+          <NavLink href="/settings">{t.settings}</NavLink>
+        </>
+      )}
+
       {role === "member" && (
         <>
           <NavLink href="/home">{t.home}</NavLink>

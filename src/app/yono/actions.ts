@@ -18,7 +18,7 @@ import {
   sendTelegramMessage,
 } from "@/lib/telegram";
 
-import { parseSubDishes, formatSubDishes } from "@/lib/dishes";
+import { parseSubDishes, formatSubDishes, computeSelectionDish } from "@/lib/dishes";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -189,7 +189,9 @@ export async function recordMemberResponseAction(
   const userId = String(formData.get("userId") ?? "").trim();
   const wantsRaw = String(formData.get("wants") ?? "yes");
   const wants = wantsRaw === "yes";
-  const subDish = String(formData.get("subDish") ?? "").trim() || null;
+  const selectedDish = String(formData.get("selectedDish") ?? "").trim();
+  const selectedVariant = String(formData.get("selectedVariant") ?? "").trim();
+  const subDishRaw = String(formData.get("subDish") ?? formData.get("swapDish") ?? "").trim();
   const addOnsRaw = String(formData.get("addOns") ?? "").trim();
   const addOnsList = parseSubDishes(addOnsRaw);
   const addOns = wants && addOnsList.length > 0 ? formatSubDishes(addOnsList) : null;
@@ -209,9 +211,36 @@ export async function recordMemberResponseAction(
     return { error: id.errors.memberNotFound };
   }
 
+  const dishOptions = parseSubDishes(menu.dish);
   const menuSubDishes = parseSubDishes(menu.subDishes);
-  if (wants && menuSubDishes.length > 0 && !subDish) {
-    return { error: id.response.variantRequired };
+
+  let swapDish: string | null = null;
+  if (wants) {
+    if (dishOptions.length > 1) {
+      if (selectedDish) {
+        swapDish = computeSelectionDish({
+          isMultiDish: true,
+          selectedDish,
+          selectedVariant,
+        });
+      } else if (subDishRaw) {
+        swapDish = subDishRaw;
+      } else {
+        return { error: "Silakan pilih salah satu menu masakan." };
+      }
+    } else {
+      if (selectedVariant) {
+        swapDish = selectedVariant;
+      } else if (subDishRaw) {
+        swapDish = subDishRaw;
+      }
+    }
+
+    if (menuSubDishes.length > 0) {
+      if (!selectedVariant && (!subDishRaw || (selectedDish && !selectedVariant))) {
+        return { error: id.response.variantRequired };
+      }
+    }
   }
 
   await db.response.upsert({
@@ -220,13 +249,13 @@ export async function recordMemberResponseAction(
       menuId: menu.id,
       userId,
       wants,
-      swapDish: wants ? subDish : null,
+      swapDish: wants ? swapDish : null,
       addOns,
       note,
     },
     update: {
       wants,
-      swapDish: wants ? subDish : null,
+      swapDish: wants ? swapDish : null,
       addOns,
       note,
     },

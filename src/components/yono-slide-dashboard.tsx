@@ -4,7 +4,7 @@ import { useState, useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { id } from "@/lib/id";
 import type { DefaultDish } from "@/lib/dishes";
-import { parseSubDishes } from "@/lib/dishes";
+import { parseSubDishes, computeSelectionDish } from "@/lib/dishes";
 import { Card, Button, Input, Label } from "@/components/ui";
 import { TelegramPingButton } from "@/components/telegram-ping-button";
 import { postMenuAction, recordMemberResponseAction, type ActionState } from "@/app/yono/actions";
@@ -742,6 +742,7 @@ export function YonoSlideDashboard({
           user={selectedPendingUser}
           dateKey={dateKey}
           menuDish={menu.dish}
+          dishOptions={parsedActiveDishes}
           subDishes={parsedActiveSubDishes}
           addOns={parsedActiveAddOns}
           onClose={() => setSelectedPendingUser(null)}
@@ -762,6 +763,7 @@ function RecordResponseModal({
   user,
   dateKey,
   menuDish,
+  dishOptions,
   subDishes,
   addOns = [],
   onClose,
@@ -770,13 +772,18 @@ function RecordResponseModal({
   user: PendingUser;
   dateKey: string;
   menuDish: string;
+  dishOptions?: string[];
   subDishes: string[];
   addOns?: string[];
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const parsedDishes = dishOptions && dishOptions.length > 0 ? dishOptions : parseSubDishes(menuDish);
+  const isMultiDish = parsedDishes.length > 1;
+
   const [wants, setWants] = useState(true);
-  const [selectedSubDish, setSelectedSubDish] = useState(subDishes[0] ?? "");
+  const [selectedDish, setSelectedDish] = useState(parsedDishes.length === 1 ? parsedDishes[0] : "");
+  const [selectedSubDish, setSelectedSubDish] = useState(subDishes.length === 1 ? subDishes[0] : "");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const t = id.yono;
 
@@ -785,6 +792,18 @@ function RecordResponseModal({
       prev.includes(addon) ? prev.filter((a) => a !== addon) : [...prev, addon]
     );
   }
+
+  const computedSubDish = (() => {
+    return computeSelectionDish({
+      isMultiDish,
+      selectedDish,
+      selectedVariant: selectedSubDish,
+    });
+  })();
+
+  const isMissingDish = wants && isMultiDish && !selectedDish;
+  const isMissingVariant = wants && subDishes.length > 0 && !selectedSubDish;
+  const isFormIncomplete = isMissingDish || isMissingVariant;
 
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
@@ -847,7 +866,13 @@ function RecordResponseModal({
           <input type="hidden" name="userId" value={user.id} />
           <input type="hidden" name="wants" value={wants ? "yes" : "no"} />
           {wants && (
-            <input type="hidden" name="subDish" value={selectedSubDish} />
+            <input type="hidden" name="selectedDish" value={selectedDish} />
+          )}
+          {wants && (
+            <input type="hidden" name="selectedVariant" value={selectedSubDish} />
+          )}
+          {wants && (
+            <input type="hidden" name="subDish" value={computedSubDish} />
           )}
           {wants && (
             <input type="hidden" name="addOns" value={selectedAddOns.join(", ")} />
@@ -889,15 +914,50 @@ function RecordResponseModal({
             </div>
           </div>
 
+          {/* Dish Selection if wants is true and isMultiDish */}
+          {wants && isMultiDish && (
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                Pilih Menu Masakan <span className="text-rose-600 font-black">*</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {parsedDishes.map((dishName) => {
+                  const isSelected = selectedDish.toLowerCase() === dishName.toLowerCase();
+                  return (
+                    <button
+                      key={dishName}
+                      type="button"
+                      onClick={() => setSelectedDish(dishName)}
+                      className={`border-2 border-black px-3.5 py-2 text-xs font-bold transition-all cursor-pointer min-h-[44px] ${
+                        isSelected
+                          ? "bg-[var(--primary)] shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
+                          : "bg-white hover:bg-stone-100"
+                      }`}
+                      aria-pressed={isSelected}
+                    >
+                      {dishName}
+                      {isSelected ? " ✓" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              {isMissingDish && (
+                <p className="text-xs font-bold text-rose-600 mt-1.5">
+                  Silakan pilih salah satu menu masakan.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Sub-menu / Variant Selection if wants is true and subDishes exist */}
           {wants && subDishes.length > 0 && (
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
-                {id.response.chooseVariant}
+                {id.response.chooseVariant} <span className="text-rose-600 font-black">*</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {subDishes.map((variant) => {
-                  const isSelected = selectedSubDish === variant;
+                  const isSelected = selectedSubDish.toLowerCase() === variant.toLowerCase();
                   return (
                     <button
                       key={variant}
@@ -916,6 +976,11 @@ function RecordResponseModal({
                   );
                 })}
               </div>
+              {isMissingVariant && (
+                <p className="text-xs font-bold text-rose-600 mt-1.5">
+                  {id.response.variantRequired}
+                </p>
+              )}
             </div>
           )}
 
@@ -935,7 +1000,7 @@ function RecordResponseModal({
                       onClick={() => toggleAddOn(addon)}
                       className={`border-2 border-black px-3.5 py-2 text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center gap-1.5 ${
                         isSelected
-                          ? "bg-emerald-300 shadow-[2px_2px_0px_#000]"
+                          ? "bg-emerald-300 shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
                           : "bg-white hover:bg-stone-100"
                       }`}
                       aria-pressed={isSelected}
@@ -972,7 +1037,7 @@ function RecordResponseModal({
             <Button
               type="submit"
               variant="primary"
-              disabled={pending || (wants && subDishes.length > 0 && !selectedSubDish)}
+              disabled={pending || isFormIncomplete}
               className="min-h-[48px] text-sm font-black border-2 border-black shadow-[2px_2px_0px_#000]"
             >
               {pending ? t.recordSaving : t.recordSave}

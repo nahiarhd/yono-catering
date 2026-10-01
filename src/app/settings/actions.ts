@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireAdmin, requireStrictAdmin, requireUser, verifyPin, hashPin } from "@/lib/auth";
+import { requireAdmin, requireUser, verifyPin, hashPin } from "@/lib/auth";
 import { parseHHMM } from "@/lib/cutoff";
 import { normalizeDishKey, parseDefaultDishes, parseSubDishes, formatSubDishes } from "@/lib/dishes";
 import { todayKey, parseDateKey } from "@/lib/dates";
@@ -79,73 +78,6 @@ export async function updateSettingsAction(
   revalidatePath("/settings");
   revalidatePath("/home");
   revalidatePath("/yono");
-  return { ok: true };
-}
-
-export async function addMemberAction(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  await requireStrictAdmin();
-
-  const name = String(formData.get("name") ?? "").trim();
-  const pin = String(formData.get("pin") ?? "").trim();
-  const rawRole = String(formData.get("role") ?? "member").trim();
-  const role: Role = rawRole === "admin" ? "admin" : "member";
-
-  if (!name || !pin) return { error: id.errors.namePinRequired };
-  if (pin.length < 4) return { error: id.errors.pinMinLength };
-
-  const exists = await db.user.findUnique({ where: { name } });
-  if (exists) return { error: id.errors.nameTaken };
-
-  await db.user.create({
-    data: { name, pinHash: await hashPin(pin), role },
-  });
-
-  revalidatePath("/settings");
-  return { ok: true };
-}
-
-export async function removeMemberAction(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const currentAdmin = await requireStrictAdmin();
-  const memberId = String(formData.get("memberId") ?? "");
-  if (memberId === currentAdmin.id) {
-    return { error: id.errors.cannotRemoveSelf };
-  }
-
-  const target = await db.user.findUnique({ where: { id: memberId } });
-  if (!target) return { error: id.errors.memberNotFound };
-  if (target.role === "yono") return { error: id.errors.cannotRemoveYono };
-
-  await db.user.delete({ where: { id: memberId } });
-  revalidatePath("/settings");
-  return { ok: true };
-}
-
-export async function resetPinAction(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  await requireStrictAdmin();
-
-  const memberId = String(formData.get("memberId") ?? "");
-  const pin = String(formData.get("pin") ?? "").trim();
-  if (!memberId || !pin) return { error: id.errors.memberPinRequired };
-  if (pin.length < 4) return { error: id.errors.pinMinLength };
-
-  const member = await db.user.findUnique({ where: { id: memberId } });
-  if (!member) return { error: id.errors.memberNotFound };
-
-  await db.user.update({
-    where: { id: memberId },
-    data: { pinHash: await hashPin(pin) },
-  });
-
-  revalidatePath("/settings");
   return { ok: true };
 }
 

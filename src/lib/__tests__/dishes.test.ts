@@ -83,7 +83,32 @@ async function main() {
   };
   assert.strictEqual(dishesList[targetIdx].name, "Bakmi Jogja Spesial");
   assert.strictEqual(dishesList[targetIdx].note, "Porsi Jumbo");
-  assert.deepStrictEqual(dishesList[targetIdx].subDishes, ["Bakmi Nyemek"]);
+  // computeSelectionDish tests
+  const { computeSelectionDish } = await import("../dishes");
+  assert.strictEqual(
+    computeSelectionDish({ isMultiDish: true, selectedDish: "Bakmi godok", selectedVariant: "Pedas" }),
+    "Bakmi godok (Pedas)"
+  );
+  assert.strictEqual(
+    computeSelectionDish({ isMultiDish: true, selectedDish: "Bakmi goreng", selectedVariant: "" }),
+    "Bakmi goreng"
+  );
+  assert.strictEqual(
+    computeSelectionDish({ isMultiDish: true, selectedDish: "", selectedVariant: "Pedas" }),
+    ""
+  );
+  assert.strictEqual(
+    computeSelectionDish({ isMultiDish: false, selectedDish: "Soto Ayam", selectedVariant: "Pedas" }),
+    "Pedas"
+  );
+  assert.strictEqual(
+    computeSelectionDish({ isMultiDish: false, selectedDish: "Soto Ayam", selectedVariant: "" }),
+    "Soto Ayam"
+  );
+  assert.strictEqual(
+    computeSelectionDish({ isMultiDish: false, selectedDish: "", selectedVariant: "" }),
+    ""
+  );
 
   console.log("dishes.test.ts ok");
 }

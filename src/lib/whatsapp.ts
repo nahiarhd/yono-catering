@@ -15,8 +15,8 @@ export type WhatsAppPayload = {
   breakdown: Array<{ dish: string; count: number }>;
   addOnBreakdown?: Array<{ name: string; count: number }>;
   totalPortions: number;
-  orders: WhatsAppOrder[];
-  pendingMembers: string[];
+  orders?: WhatsAppOrder[];
+  pendingMembers?: string[];
 };
 
 export function buildWhatsAppMessage(payload: WhatsAppPayload): string {
@@ -31,7 +31,21 @@ export function buildWhatsAppMessage(payload: WhatsAppPayload): string {
   lines.push("");
 
   lines.push("*RINGKASAN PORSI:*");
-  if (payload.breakdown.length > 0) {
+  const eating = (payload.orders ?? []).filter((o) => o.wants !== false);
+  if (eating.length > 0) {
+    const portionCounts = new Map<string, number>();
+    for (const o of eating) {
+      const dish = o.dish?.trim() || payload.dish;
+      const dishLabel = dish !== payload.dish ? (dish.startsWith("(") ? dish : `(${dish})`) : dish;
+      const addOns = o.addOns?.trim() ? ` [+ ${o.addOns.trim()}]` : "";
+      const note = o.note?.trim() ? ` [Catatan: ${o.note.trim()}]` : "";
+      const key = `${dishLabel}${addOns}${note}`;
+      portionCounts.set(key, (portionCounts.get(key) ?? 0) + 1);
+    }
+    for (const [item, count] of portionCounts.entries()) {
+      lines.push(`• ${item}: ${count} porsi`);
+    }
+  } else if (payload.breakdown && payload.breakdown.length > 0) {
     for (const item of payload.breakdown) {
       lines.push(`• ${item.dish}: ${item.count} porsi`);
     }
@@ -47,40 +61,6 @@ export function buildWhatsAppMessage(payload: WhatsAppPayload): string {
       lines.push(`• ${item.name}: ${item.count} porsi`);
     }
   }
-  lines.push("");
-
-  const eating = payload.orders.filter((o) => o.wants !== false);
-  const notEating = payload.orders.filter((o) => o.wants === false);
-
-  lines.push(`*DAFTAR IKUT MAKAN (${eating.length} orang):*`);
-  if (eating.length > 0) {
-    eating.forEach((o, i) => {
-      const variant = o.dish && o.dish !== payload.dish ? ` (${o.dish})` : "";
-      const addOns = o.addOns?.trim() ? ` [+ ${o.addOns.trim()}]` : "";
-      const note = o.note?.trim() ? ` [Catatan: ${o.note.trim()}]` : "";
-      lines.push(`${i + 1}. ${o.name}${variant}${addOns}${note}`);
-    });
-  } else {
-    lines.push("(Belum ada yang ikut makan)");
-  }
-
-  if (notEating.length > 0) {
-    lines.push("");
-    lines.push(`*TIDAK IKUT MAKAN (${notEating.length} orang):*`);
-    notEating.forEach((o) => {
-      const note = o.note?.trim() ? ` [Catatan: ${o.note.trim()}]` : "";
-      lines.push(`• ${o.name}${note}`);
-    });
-  }
-
-  if (payload.pendingMembers.length > 0) {
-    lines.push("");
-    lines.push(`*BELUM MEMILIH (${payload.pendingMembers.length} orang):*`);
-    payload.pendingMembers.forEach((name) => {
-      lines.push(`• ${name}`);
-    });
-  }
-
   lines.push("");
   lines.push("Terima kasih! Dapur Pak Yono");
 

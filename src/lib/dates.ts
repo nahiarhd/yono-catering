@@ -3,9 +3,6 @@ function tz() {
   return process.env.HOUSEHOLD_TZ ?? "Asia/Jakarta";
 }
 
-export function getHouseholdTz() {
-  return tz();
-}
 
 /** YYYY-MM-DD in household timezone */
 export function todayKey(now = new Date()): string {

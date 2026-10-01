@@ -26,14 +26,6 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
-  if (
-    pathname.startsWith("/yono") &&
-    session.role !== "yono" &&
-    session.role !== "admin"
-  ) {
-    return NextResponse.redirect(new URL("/home", request.url));
-  }
-
   return NextResponse.next();
 }
 

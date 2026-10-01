@@ -5,6 +5,7 @@ import { recordMemberResponseAction, type ActionState } from "@/app/yono/actions
 import { TelegramPingButton } from "@/components/telegram-ping-button";
 import { Button } from "@/components/ui";
 import { id } from "@/lib/id";
+import { parseSubDishes, computeSelectionDish } from "@/lib/dishes";
 
 export interface PendingUser {
   id: string;
@@ -14,14 +15,18 @@ export interface PendingUser {
 interface PendingMembersListProps {
   dateKey: string;
   menuDish: string;
+  dishOptions?: string[];
   subDishes: string[];
+  addOns?: string[];
   pendingUsers: PendingUser[];
 }
 
 export function PendingMembersList({
   dateKey,
   menuDish,
+  dishOptions,
   subDishes,
+  addOns = [],
   pendingUsers,
 }: PendingMembersListProps) {
   const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null);
@@ -71,7 +76,9 @@ export function PendingMembersList({
           user={selectedUser}
           dateKey={dateKey}
           menuDish={menuDish}
+          dishOptions={dishOptions}
           subDishes={subDishes}
+          addOns={addOns}
           onClose={() => setSelectedUser(null)}
         />
       )}
@@ -83,18 +90,45 @@ function RecordResponseModal({
   user,
   dateKey,
   menuDish,
+  dishOptions,
   subDishes,
+  addOns = [],
   onClose,
 }: {
   user: PendingUser;
   dateKey: string;
   menuDish: string;
+  dishOptions?: string[];
   subDishes: string[];
+  addOns?: string[];
   onClose: () => void;
 }) {
+  const parsedDishes = dishOptions && dishOptions.length > 0 ? dishOptions : parseSubDishes(menuDish);
+  const isMultiDish = parsedDishes.length > 1;
+
   const [wants, setWants] = useState(true);
-  const [selectedSubDish, setSelectedSubDish] = useState(subDishes[0] ?? "");
+  const [selectedDish, setSelectedDish] = useState(parsedDishes.length === 1 ? parsedDishes[0] : "");
+  const [selectedSubDish, setSelectedSubDish] = useState(subDishes.length === 1 ? subDishes[0] : "");
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const t = id.yono;
+
+  function toggleAddOn(addon: string) {
+    setSelectedAddOns((prev) =>
+      prev.includes(addon) ? prev.filter((a) => a !== addon) : [...prev, addon]
+    );
+  }
+
+  const computedSubDish = (() => {
+    return computeSelectionDish({
+      isMultiDish,
+      selectedDish,
+      selectedVariant: selectedSubDish,
+    });
+  })();
+
+  const isMissingDish = wants && isMultiDish && !selectedDish;
+  const isMissingVariant = wants && subDishes.length > 0 && !selectedSubDish;
+  const isFormIncomplete = isMissingDish || isMissingVariant;
 
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
@@ -157,7 +191,16 @@ function RecordResponseModal({
           <input type="hidden" name="userId" value={user.id} />
           <input type="hidden" name="wants" value={wants ? "yes" : "no"} />
           {wants && (
-            <input type="hidden" name="subDish" value={selectedSubDish} />
+            <input type="hidden" name="selectedDish" value={selectedDish} />
+          )}
+          {wants && (
+            <input type="hidden" name="selectedVariant" value={selectedSubDish} />
+          )}
+          {wants && (
+            <input type="hidden" name="subDish" value={computedSubDish} />
+          )}
+          {wants && (
+            <input type="hidden" name="addOns" value={selectedAddOns.join(", ")} />
           )}
 
           {/* Status Selection Cards */}
@@ -194,15 +237,50 @@ function RecordResponseModal({
             </div>
           </div>
 
+          {/* Dish Selection if wants is true and isMultiDish */}
+          {wants && isMultiDish && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                Pilih Menu Masakan <span className="text-rose-600 font-black">*</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {parsedDishes.map((dishName) => {
+                  const isSelected = selectedDish.toLowerCase() === dishName.toLowerCase();
+                  return (
+                    <button
+                      key={dishName}
+                      type="button"
+                      onClick={() => setSelectedDish(dishName)}
+                      className={`border-2 border-black px-3.5 py-2 text-xs font-bold transition-all cursor-pointer min-h-[44px] ${
+                        isSelected
+                          ? "bg-[var(--primary)] shadow-[2px_2px_0px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
+                          : "bg-white hover:bg-stone-100"
+                      }`}
+                      aria-pressed={isSelected}
+                    >
+                      {dishName}
+                      {isSelected ? " ✓" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              {isMissingDish && (
+                <p className="text-xs font-bold text-rose-600 mt-1.5">
+                  Silakan pilih salah satu menu masakan.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Sub-menu / Variant Selection if wants is true and subDishes exist */}
           {wants && subDishes.length > 0 && (
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
-                {id.response.chooseVariant}
+                {id.response.chooseVariant} <span className="text-rose-600 font-black">*</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {subDishes.map((variant) => {
-                  const isSelected = selectedSubDish === variant;
+                  const isSelected = selectedSubDish.toLowerCase() === variant.toLowerCase();
                   return (
                     <button
                       key={variant}
@@ -213,9 +291,45 @@ function RecordResponseModal({
                           ? "bg-[var(--primary)] shadow-[2px_2px_0px_0px_#000]"
                           : "bg-white hover:bg-stone-100"
                       }`}
+                      aria-pressed={isSelected}
                     >
                       {variant}
                       {isSelected ? " ✓" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              {isMissingVariant && (
+                <p className="text-xs font-bold text-rose-600 mt-1.5">
+                  {id.response.variantRequired}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Add-on Selection if wants is true and addOns exist */}
+          {wants && addOns.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                {id.response.chooseAddOns || "Pilih Add-on (opsional)"}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {addOns.map((addon) => {
+                  const isSelected = selectedAddOns.includes(addon);
+                  return (
+                    <button
+                      key={addon}
+                      type="button"
+                      onClick={() => toggleAddOn(addon)}
+                      className={`border-2 border-black px-3.5 py-2 text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center gap-1.5 ${
+                        isSelected
+                          ? "bg-emerald-300 shadow-[2px_2px_0px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
+                          : "bg-white hover:bg-stone-100"
+                      }`}
+                      aria-pressed={isSelected}
+                    >
+                      <span>{isSelected ? "✓" : "+"}</span>
+                      <span>{addon}</span>
                     </button>
                   );
                 })}
@@ -246,7 +360,7 @@ function RecordResponseModal({
             <Button
               type="submit"
               variant="primary"
-              disabled={pending || (wants && subDishes.length > 0 && !selectedSubDish)}
+              disabled={pending || isFormIncomplete}
               className="min-h-[44px] text-xs font-bold"
             >
               {pending ? t.recordSaving : t.recordSave}

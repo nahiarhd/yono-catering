@@ -12,35 +12,19 @@ export function normalizeDishKey(dish: string): string {
 
 export function parseSubDishes(input: unknown): string[] {
   if (!input) return [];
-  if (Array.isArray(input)) {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const item of input) {
-      if (typeof item !== "string") continue;
-      const clean = item.trim();
-      if (!clean) continue;
-      const key = clean.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(clean);
-    }
-    return out;
+  const rawList = Array.isArray(input) ? input : typeof input === "string" ? input.split(",") : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of rawList) {
+    if (typeof item !== "string") continue;
+    const clean = item.trim();
+    if (!clean) continue;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(clean);
   }
-  if (typeof input === "string") {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    const parts = input.split(",");
-    for (const part of parts) {
-      const clean = part.trim();
-      if (!clean) continue;
-      const key = clean.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(clean);
-    }
-    return out;
-  }
-  return [];
+  return out;
 }
 
 export function formatSubDishes(subDishes?: string[] | null): string {
@@ -93,4 +77,22 @@ export function dishLabelForKey(dishes: (DefaultDish | string)[], key: string): 
   });
   if (!found) return key;
   return typeof found === "string" ? found : found.name;
+}
+
+export function computeSelectionDish({
+  isMultiDish,
+  selectedDish,
+  selectedVariant,
+}: {
+  isMultiDish: boolean;
+  selectedDish?: string | null;
+  selectedVariant?: string | null;
+}): string {
+  const d = selectedDish?.trim() || "";
+  const v = selectedVariant?.trim() || "";
+  if (isMultiDish) {
+    if (!d) return "";
+    return v ? `${d} (${v})` : d;
+  }
+  return v || d;
 }
