@@ -149,44 +149,24 @@ export function YonoSlideDashboard({
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {parsedPresets.map((preset) => {
                     const isSelected = dish.trim().toLowerCase() === preset.name.trim().toLowerCase();
-                    const hasSub = preset.subDishes && preset.subDishes.length > 0;
+                    const label = preset.warung || preset.name;
                     return (
                       <button
                         key={preset.name}
                         type="button"
                         onClick={() => handleSelectPreset(preset)}
-                        className={`border-2 border-black p-3 text-left transition-all cursor-pointer min-h-[56px] flex flex-col justify-center ${
+                        className={`border-2 border-black p-3 text-left transition-all cursor-pointer min-h-[48px] flex items-center justify-between gap-2 ${
                           isSelected
                             ? "bg-black text-white shadow-[3px_3px_0px_#fdc800] -translate-y-0.5"
                             : "bg-white hover:bg-amber-100 text-black shadow-[2px_2px_0px_#000]"
                         }`}
                         aria-pressed={isSelected}
+                        title={preset.name ? `Menu: ${preset.name}` : undefined}
                       >
-                        {preset.warung && (
-                          <span
-                            className={`text-[10px] font-black uppercase tracking-wider block mb-0.5 truncate ${
-                              isSelected ? "text-amber-300" : "text-amber-800"
-                            }`}
-                          >
-                            {preset.warung}
-                          </span>
-                        )}
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-black text-sm sm:text-base leading-tight">
-                            {preset.name}
-                          </span>
-                          {isSelected && <span className="text-xs font-extrabold text-[var(--primary)]">✓</span>}
-                        </div>
-                        {hasSub && (
-                          <span className={`text-[11px] block mt-0.5 font-bold ${isSelected ? "text-amber-200" : "text-emerald-700"}`}>
-                            {preset.subDishes!.length} varian
-                          </span>
-                        )}
-                        {preset.note && (
-                          <span className={`text-[11px] truncate block max-w-full font-medium ${isSelected ? "text-stone-300" : "text-[var(--text-muted)]"}`}>
-                            {preset.note}
-                          </span>
-                        )}
+                        <span className="font-black text-sm sm:text-base leading-snug">
+                          {label}
+                        </span>
+                        {isSelected && <span className="text-xs font-extrabold text-[var(--primary)] shrink-0">✓</span>}
                       </button>
                     );
                   })}

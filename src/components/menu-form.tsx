@@ -64,19 +64,9 @@ export function MenuForm({
                       className={`neo-dish-chip neo-dish-chip--menu${selected ? " neo-dish-chip--selected" : ""}`}
                       onClick={() => handleSelectPreset(preset)}
                       aria-pressed={selected}
-                      title={preset.note ? `Catatan: ${preset.note}` : undefined}
+                      title={preset.name ? `Menu: ${preset.name}` : undefined}
                     >
-                      {preset.warung && (
-                        <span className="text-[10px] uppercase font-black tracking-wider block opacity-75 truncate max-w-[140px]">
-                          {preset.warung}
-                        </span>
-                      )}
-                      <span className="font-extrabold">{preset.name}</span>
-                      {preset.note && (
-                        <span className="text-[10px] opacity-80 font-medium block max-w-[140px] truncate">
-                          {preset.note}
-                        </span>
-                      )}
+                      <span className="font-extrabold">{preset.warung || preset.name}</span>
                     </button>
                   );
                 })}
