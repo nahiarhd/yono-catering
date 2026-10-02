@@ -808,47 +808,6 @@ body {
   color: var(--text);
 }
 
-.neo-response-notes-quick {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-}
-
-.neo-response-note-chips {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.neo-response-note-chip {
-  min-width: 0;
-  border: 2px solid var(--neo-black);
-  background: #ffffff;
-  color: var(--text);
-  padding: 12px 8px;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
-}
-
-.neo-response-note-chip:hover {
-  background: var(--surface);
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 var(--neo-black);
-}
-
-.neo-response-note-chip--selected {
-  border: var(--border);
-  box-shadow: 3px 3px 0 var(--neo-black);
-  background: var(--secondary);
-  color: #ffffff;
-}
-
-.neo-response-note-chip:focus-visible,
 .neo-response-choice:focus-visible {
   outline: 3px solid var(--secondary);
   outline-offset: 2px;
@@ -1138,15 +1097,13 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .neo-btn,
-  .neo-response-choice,
-  .neo-response-note-chip {
+  .neo-response-choice {
     transition: none;
   }
   .neo-btn:hover:not(:disabled),
   .neo-btn:active:not(:disabled),
   .neo-response-choice:hover,
-  .neo-response-choice:active,
-  .neo-response-note-chip:hover {
+  .neo-response-choice:active {
     transform: none;
   }
 }
@@ -1194,5 +1151,36 @@ body {
   .print-break-inside-avoid {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+}
+
+/* Route loading: hard-edged block sliding in a bordered track; shows the request is still in flight */
+.neo-loading-track {
+  position: relative;
+  height: 12px;
+  border: 2px solid var(--neo-black);
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.neo-loading-track > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  background: var(--primary);
+  border-right: 2px solid var(--neo-black);
+  animation: neo-loading 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes neo-loading {
+  to {
+    transform: translateX(186%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neo-loading-track > span {
+    animation: none;
+    width: 100%;
   }
 }

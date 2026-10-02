@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { canOrder, requireUser } from "@/lib/auth";
 import { getMenuDay } from "@/lib/menu-data";
-import { normalizeDishKey, parseSubDishes } from "@/lib/dishes";
+import { normalizeDishKey, parseSubDishes, resolveMenuSelection } from "@/lib/dishes";
 import { upsertDishPreference } from "@/lib/preferences";
 import { todayKey } from "@/lib/dates";
 import { broadcastRealtime } from "@/lib/realtime";
@@ -39,8 +39,10 @@ export async function submitResponseAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await requireUser();
+  if (!canOrder(user)) return { error: id.errors.cannotOrder };
+
   const dateKey = String(formData.get("dateKey") ?? "");
-  const { wants, swapDish, addOns, note } = parsePreferenceFields(formData);
+  const { wants, note } = parsePreferenceFields(formData);
   const saveAsPreference = String(formData.get("saveAsPreference") ?? "") === "yes";
 
   if (!dateKey || dateKey < todayKey()) return { error: id.errors.missingDay };
@@ -49,15 +51,17 @@ export async function submitResponseAction(
   if (!menu) return { error: id.errors.noMenu };
   if (locked) return { error: id.errors.locked };
 
-  const dishOptions = parseSubDishes(menu.dish);
-  const menuSubDishes = parseSubDishes(menu.subDishes);
+  let swapDish: string | null = null;
+  let addOns: string | null = null;
   if (wants) {
-    if (dishOptions.length > 1 && !swapDish) {
-      return { error: "Silakan pilih salah satu menu masakan." };
-    }
-    if (menuSubDishes.length > 0 && !swapDish) {
-      return { error: id.response.variantRequired };
-    }
+    const selection = resolveMenuSelection(menu, {
+      selectedDish: String(formData.get("selectedDish") ?? ""),
+      selectedVariant: String(formData.get("selectedVariant") ?? ""),
+      addOns: String(formData.get("addOns") ?? ""),
+    });
+    if (selection === "dishRequired") return { error: "Silakan pilih salah satu menu masakan." };
+    if (selection === "variantRequired") return { error: id.response.variantRequired };
+    ({ swapDish, addOns } = selection);
   }
 
   await db.response.upsert({

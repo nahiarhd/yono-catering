@@ -10,6 +10,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  // Same value as `secret_token` passed to Telegram's setWebhook
+  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (secret && request.headers.get("x-telegram-bot-api-secret-token") !== secret) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
 

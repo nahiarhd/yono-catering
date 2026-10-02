@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import {
   saveDishPreferenceAction,
   removeDishPreferenceAction,
@@ -118,6 +118,7 @@ function DishPreferenceEditor({
   const [wants, setWants] = useState(initial?.wants !== false);
   const [subDish, setSubDish] = useState(initial?.swapDish ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
+  const noteId = useId();
 
   return (
     <div className="neo-pref-editor">
@@ -181,26 +182,10 @@ function DishPreferenceEditor({
         )}
 
         <div className="neo-response-notes">
-          <p className="neo-response-notes-label">{rt.noteLabel}</p>
-          <div className="neo-response-note-chips">
-            {rt.notePresets.map((preset) => {
-              const selected = note === preset;
-              return (
-                <button
-                  key={preset}
-                  type="button"
-                  className={`neo-response-note-chip${selected ? " neo-response-note-chip--selected" : ""}`}
-                  onClick={() => setNote((c) => (c === preset ? "" : preset))}
-                  aria-pressed={selected}
-                >
-                  {preset}
-                </button>
-              );
-            })}
-          </div>
+          <label htmlFor={noteId} className="neo-response-notes-label">{rt.noteLabel}</label>
           <Input
+            id={noteId}
             name="note"
-            placeholder={rt.notePlaceholder}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />

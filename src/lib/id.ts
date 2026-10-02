@@ -6,6 +6,14 @@ export const id = {
     description:
       "Buat yang belum tahu, ini aplikasi buat bantu Pak Yono ngumpulin pesenan makan siang dari kita-kita. Jadi Pak Yono bisa masak sesuai jumlah yang dibutuhkan aja, gak kebanyakan atau kekurangan. Kita juga bisa kasih catatan kalau mau, misal pedas atau gak pakai cabe. Pokoknya biar makan siangnya makin enak dan sesuai selera kita semua deh!",
   },
+  loading: {
+    home: "Lagi ambil menu hari ini…",
+    kitchen: "Lagi ambil pesanan buat dapur…",
+    reports: "Lagi nyusun rekap…",
+    preferences: "Lagi ambil preferensi kamu…",
+    settings: "Lagi ambil pengaturan…",
+    users: "Lagi ambil daftar pengguna…",
+  },
   nav: {
     kitchen: "Dapur",
     settings: "Pengaturan",
@@ -30,6 +38,8 @@ export const id = {
     seedHint: "Jalankan npm run db:push && npm run db:seed dulu.",
     errorNamePin: "Pilih nama dan masukkan PIN.",
     errorWrong: "Nama atau PIN salah.",
+    errorLocked: (minutes: number) =>
+      `Terlalu banyak PIN salah. Coba lagi dalam ${minutes} menit.`,
   },
   time: {
     hour: "Jam",
@@ -80,9 +90,6 @@ export const id = {
     swapLabel: "Menu pengganti",
     swapPlaceholder: "contoh: ayam",
     noteLabel: "Catatan (opsional)",
-    noteQuick: "Pilihan cepat:",
-    notePresets: ["Porsi banyak", "Pedas", "Tanpa cabe", "Kuah dipisah", "Bungkus"],
-    notePlaceholder: "contoh: pedas, tanpa cabe",
     chooseVariant: "Pilih Varian Menu",
     variantRequired: "Wajib memilih salah satu varian menu.",
     chooseAddOns: "Pilih Add-on (opsional)",
@@ -288,6 +295,7 @@ export const id = {
     swapRequired: "Pilihan wajib diisi.",
     noMenu: "Belum ada menu untuk hari ini.",
     locked: "Jawaban sudah terkunci hari ini.",
+    cannotOrder: "Akun ini tidak bisa memesan.",
     dishRequired: "Menu wajib diisi.",
     dishExists: "Menu sudah ada dalam daftar.",
     dishNotFound: "Menu tidak ditemukan.",

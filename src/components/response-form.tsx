@@ -77,7 +77,7 @@ export function ResponseForm({
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>(
     initial?.addOns ? parseSubDishes(initial.addOns) : []
   );
-  const [saveAsPreference, setSaveAsPreference] = useState(true);
+  const [saveAsPreference, setSaveAsPreference] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   function toggleAddOn(addon: string) {
@@ -90,15 +90,20 @@ export function ResponseForm({
 
   const [note, setNote] = useState(initial?.note ?? "");
 
-  function toggleNotePreset(preset: string) {
-    setNote((current) => (current === preset ? "" : preset));
-  }
-
   useEffect(() => {
     if (state.ok) router.refresh();
   }, [state.ok, router]);
 
   const showPopup = Boolean(state.ok && !dismissed);
+
+  useEffect(() => {
+    if (!showPopup) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setDismissed(true);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showPopup]);
 
   const computedSubDish = (() => {
     if (isMultiDish) {
@@ -284,32 +289,10 @@ export function ResponseForm({
         )}
 
         <div className="neo-response-notes">
-          <p className="neo-response-notes-label">{t.noteLabel}</p>
-          {wants && (
-            <>
-              <p className="neo-response-notes-quick">{t.noteQuick}</p>
-              <div className="neo-response-note-chips">
-                {t.notePresets.map((preset) => {
-                  const selected = note === preset;
-                  return (
-                    <button
-                      key={preset}
-                      type="button"
-                      className={`neo-response-note-chip${selected ? " neo-response-note-chip--selected" : ""}`}
-                      onClick={() => toggleNotePreset(preset)}
-                      aria-pressed={selected}
-                    >
-                      {preset}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          <label htmlFor="note" className="neo-response-notes-label">{t.noteLabel}</label>
           <Input
             id="note"
             name="note"
-            placeholder={t.notePlaceholder}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />

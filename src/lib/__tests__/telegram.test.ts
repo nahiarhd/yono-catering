@@ -19,7 +19,6 @@ function testGetAppUrl() {
 
   delete process.env.NEXT_PUBLIC_APP_URL;
   delete process.env.APP_URL;
-  delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
   assert.strictEqual(getAppUrl(), "http://localhost:3000");
 
   if (original) process.env.NEXT_PUBLIC_APP_URL = original;

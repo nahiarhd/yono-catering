@@ -116,3 +116,27 @@ export function PageShell({
     </div>
   );
 }
+
+/** Route-level loading fallback: says what is loading so a slow link never looks frozen */
+export function RouteLoading({
+  title,
+  message,
+  maxWidth,
+}: {
+  title: string;
+  message: string;
+  maxWidth?: string;
+}) {
+  return (
+    <PageShell title={title} maxWidth={maxWidth}>
+      <Card className="flex flex-col gap-3">
+        <p role="status" className="font-bold">
+          {message}
+        </p>
+        <div className="neo-loading-track" aria-hidden="true">
+          <span />
+        </div>
+      </Card>
+    </PageShell>
+  );
+}

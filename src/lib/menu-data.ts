@@ -1,12 +1,7 @@
 import { db } from "./db";
 import { getSettings } from "./settings";
-import { isResponsesLocked, menuDateToKey } from "./cutoff";
+import { isResponsesLocked } from "./cutoff";
 import { parseDateKey } from "./dates";
-
-// Preserves full history across app lifetime as requested
-export async function deletePastMenus(_minDateKey?: string) {
-  void _minDateKey;
-}
 
 export async function getMenuDay(dateKey: string) {
   const settings = await getSettings();
@@ -58,8 +53,4 @@ export async function upsertMenu(input: {
       cutoffOverride: input.cutoffOverride,
     },
   });
-}
-
-export function menuDateKeyFromMenu(menu: { date: Date }) {
-  return menuDateToKey(menu.date);
 }

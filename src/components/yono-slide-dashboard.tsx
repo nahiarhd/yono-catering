@@ -794,7 +794,6 @@ function RecordResponseModal({
   const [selectedSubDish, setSelectedSubDish] = useState(subDishes.length === 1 ? subDishes[0] : "");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [note, setNote] = useState("");
-  const notePresets = id.response.notePresets;
   const t = id.yono;
 
   function toggleAddOn(addon: string) {
@@ -863,7 +862,7 @@ function RecordResponseModal({
           <button
             type="button"
             onClick={onClose}
-            className="border-2 border-black bg-stone-100 hover:bg-stone-200 w-8 h-8 flex items-center justify-center font-bold text-sm cursor-pointer"
+            className="border-2 border-black bg-stone-100 hover:bg-stone-200 w-11 h-11 shrink-0 flex items-center justify-center font-bold text-sm cursor-pointer"
             aria-label="Tutup dialog"
           >
             ✕
@@ -1037,30 +1036,9 @@ function RecordResponseModal({
               name="note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="contoh: pedas, bungkus, tanpa sayur"
               className="w-full text-sm min-h-[44px]"
             />
 
-            {/* Quick Note Presets */}
-            {wants && (
-              <div className="mt-2 flex flex-wrap gap-1.5 items-center">
-                <span className="text-[11px] font-bold text-[var(--text-muted)]">
-                  {id.response.noteQuick}
-                </span>
-                {notePresets.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() =>
-                      setNote((prev) => (prev ? `${prev}, ${preset}` : preset))
-                    }
-                    className="border border-black bg-stone-100 hover:bg-stone-200 px-2 py-1 text-xs font-bold cursor-pointer"
-                  >
-                    +{preset}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {state?.error && (

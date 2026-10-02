@@ -36,10 +36,6 @@ export function isResponsesLocked(
   return nowMinutes >= cutoffMinutes;
 }
 
-export function menuDateToKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 export function isValidDateKey(key: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return false;
   const d = parseDateKey(key);

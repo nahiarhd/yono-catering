@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireAdmin, requireUser, verifyPin, hashPin } from "@/lib/auth";
+import { createSession, requireAdmin, requireUser, verifyPin, hashPin } from "@/lib/auth";
 import { parseHHMM } from "@/lib/cutoff";
 import { normalizeDishKey, parseDefaultDishes, parseSubDishes, formatSubDishes } from "@/lib/dishes";
 import { todayKey, parseDateKey } from "@/lib/dates";
@@ -39,10 +39,12 @@ export async function updateOwnPinAction(
     return { error: id.account.errorPinMismatch };
   }
 
-  await db.user.update({
+  const updated = await db.user.update({
     where: { id: user.id },
     data: { pinHash: await hashPin(newPin) },
   });
+  // New PIN logs out other devices; keep this one signed in
+  await createSession(updated);
 
   revalidatePath("/preferences");
   revalidatePath("/settings");
@@ -63,18 +65,20 @@ export async function updateSettingsAction(
     return { error: id.errors.timeFormat };
   }
 
-  await db.settings.upsert({
+  const previous = await getSettings();
+  await db.settings.update({
     where: { id: "singleton" },
-    create: { id: "singleton", standingCutoff, reminderTime },
-    update: { standingCutoff, reminderTime },
+    data: { standingCutoff, reminderTime },
   });
 
   // Sinkronkan menu aktif hari ini dan ke depan agar langsung mengikuti batas waktu baru
-  const today = parseDateKey(todayKey());
-  await db.menu.updateMany({
-    where: { date: { gte: today } },
-    data: { cutoffOverride: null },
-  });
+  if (previous.standingCutoff !== standingCutoff) {
+    const today = parseDateKey(todayKey());
+    await db.menu.updateMany({
+      where: { date: { gte: today } },
+      data: { cutoffOverride: null },
+    });
+  }
 
   revalidatePath("/settings");
   revalidatePath("/home");

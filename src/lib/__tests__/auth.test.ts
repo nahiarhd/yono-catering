@@ -8,6 +8,7 @@ async function main() {
     userId: "user-1",
     role: "member",
     exp: Math.floor(Date.now() / 1000) + 3600,
+    pv: "pin-v1",
   });
 
   const payload = verifySessionToken(token);
@@ -18,10 +19,15 @@ async function main() {
   const tampered = token.slice(0, -1) + (token.endsWith("a") ? "b" : "a");
   assert.strictEqual(verifySessionToken(tampered), null);
 
+  // Pre-PIN-version tokens are rejected
+  const legacy = signSession({ userId: "user-1", role: "member", exp: Math.floor(Date.now() / 1000) + 3600 } as never);
+  assert.strictEqual(verifySessionToken(legacy), null);
+
   const adminToken = signSession({
     userId: "admin-1",
     role: "admin",
     exp: Math.floor(Date.now() / 1000) + 3600,
+    pv: "pin-v1",
   });
   const adminPayload = verifySessionToken(adminToken);
   assert.ok(adminPayload);

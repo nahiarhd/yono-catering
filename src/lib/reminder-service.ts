@@ -47,7 +47,7 @@ export async function checkAndSendReminders(options?: {
   if (!force && menu.reminderSentAt) {
     return {
       triggered: false,
-      reason: `Pengingat hari ini sudah dikirim pada ${menu.reminderSentAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB.`,
+      reason: `Pengingat hari ini sudah dikirim pada ${nowInHousehold(menu.reminderSentAt).hhmm} WIB.`,
     };
   }
 
@@ -77,6 +77,15 @@ export async function checkAndSendReminders(options?: {
     }
   }
 
+  // Klaim atomik sebelum kirim: scheduler 30 detik dan tombol tes bisa jalan bersamaan
+  const claimed = await db.menu.updateMany({
+    where: force ? { id: menu.id } : { id: menu.id, reminderSentAt: null },
+    data: { reminderSentAt: new Date() },
+  });
+  if (claimed.count === 0) {
+    return { triggered: false, reason: "Pengingat hari ini sedang/sudah dikirim." };
+  }
+
   const respondedUserIds = new Set(menu.responses.map((r) => r.userId));
   const pendingMembers = await db.user.findMany({
     where: {
@@ -88,10 +97,6 @@ export async function checkAndSendReminders(options?: {
 
   // Jika semua sudah merespons
   if (pendingMembers.length === 0) {
-    await db.menu.update({
-      where: { id: menu.id },
-      data: { reminderSentAt: new Date() },
-    });
     return {
       triggered: true,
       sentCount: 0,
@@ -143,12 +148,6 @@ export async function checkAndSendReminders(options?: {
       }
     }
   }
-
-  // Tandai pengingat hari ini sudah dikirim di database
-  await db.menu.update({
-    where: { id: menu.id },
-    data: { reminderSentAt: new Date() },
-  });
 
   return {
     triggered: true,

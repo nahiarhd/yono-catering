@@ -19,10 +19,6 @@ class RealtimeHub {
       }
     }
   }
-
-  get listenerCount(): number {
-    return this.listeners.size;
-  }
 }
 
 const globalForRealtime = globalThis as unknown as {

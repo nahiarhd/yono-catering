@@ -69,16 +69,6 @@ export function parseDefaultDishes(value: unknown): DefaultDish[] {
   return out;
 }
 
-export function dishLabelForKey(dishes: (DefaultDish | string)[], key: string): string {
-  const normalized = normalizeDishKey(key);
-  const found = dishes.find((d) => {
-    const name = typeof d === "string" ? d : d.name;
-    return normalizeDishKey(name) === normalized;
-  });
-  if (!found) return key;
-  return typeof found === "string" ? found : found.name;
-}
-
 export function computeSelectionDish({
   isMultiDish,
   selectedDish,
@@ -95,4 +85,34 @@ export function computeSelectionDish({
     return v ? `${d} (${v})` : d;
   }
   return v || d;
+}
+/**
+ * Validates a member's pick against the posted menu (case-insensitive, canonical casing kept)
+ * and returns it in the same shape Yono's recording stores, so tallies group together.
+ */
+export function resolveMenuSelection(
+  menu: { dish: string; subDishes: string | null; addOns: string | null },
+  input: { selectedDish: string; selectedVariant: string; addOns: string },
+): "dishRequired" | "variantRequired" | { swapDish: string | null; addOns: string | null } {
+  const pick = (options: string[], value: string) =>
+    options.find((o) => o.toLowerCase() === value.trim().toLowerCase());
+  const dishOptions = parseSubDishes(menu.dish);
+  const variants = parseSubDishes(menu.subDishes);
+  const menuAddOns = parseSubDishes(menu.addOns);
+
+  const isMultiDish = dishOptions.length > 1;
+  const dish = isMultiDish ? pick(dishOptions, input.selectedDish) : undefined;
+  if (isMultiDish && !dish) return "dishRequired";
+
+  const variant = pick(variants, input.selectedVariant);
+  if (variants.length > 0 && !variant) return "variantRequired";
+
+  const addOns = parseSubDishes(input.addOns)
+    .map((a) => pick(menuAddOns, a))
+    .filter((a): a is string => Boolean(a));
+
+  return {
+    swapDish: computeSelectionDish({ isMultiDish, selectedDish: dish, selectedVariant: variant }) || null,
+    addOns: addOns.length > 0 ? formatSubDishes(addOns) : null,
+  };
 }

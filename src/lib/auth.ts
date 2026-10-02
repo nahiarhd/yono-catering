@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { createHash } from "crypto";
 import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
 import { db } from "./db";
@@ -10,11 +11,16 @@ const MAX_AGE = 60 * 60 * 24 * 30;
 
 export { verifySessionToken };
 
-export async function createSession(userId: string, role: Role) {
+function pinVersion(pinHash: string) {
+  return createHash("sha256").update(pinHash).digest("base64url").slice(0, 16);
+}
+
+export async function createSession(user: { id: string; role: Role; pinHash: string }) {
   const token = signSession({
-    userId,
-    role,
+    userId: user.id,
+    role: user.role,
     exp: Math.floor(Date.now() / 1000) + MAX_AGE,
+    pv: pinVersion(user.pinHash),
   });
   const jar = await cookies();
   jar.set(COOKIE, token, {
@@ -41,7 +47,9 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function getCurrentUser() {
   const session = await getSession();
   if (!session) return null;
-  return db.user.findUnique({ where: { id: session.userId } });
+  const user = await db.user.findUnique({ where: { id: session.userId } });
+  if (!user || pinVersion(user.pinHash) !== session.pv) return null;
+  return user;
 }
 
 export async function requireUser() {

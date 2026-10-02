@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function ReportsPage() {
   const user = await requireAdmin();
 
+  // ponytail: full history by request, bounded by one menu per day; paginate by month if this gets slow
   const rawMenus = await db.menu.findMany({
     include: {
       responses: {

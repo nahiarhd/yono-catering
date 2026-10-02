@@ -5,6 +5,8 @@ export type SessionPayload = {
   userId: string;
   role: Role;
   exp: number;
+  /** Fingerprint of the PIN hash at login; changing the PIN invalidates the session */
+  pv: string;
 };
 
 function secret(): string {
@@ -29,7 +31,7 @@ export function verifySessionToken(token: string): SessionPayload | null {
     return null;
   }
   const payload = JSON.parse(Buffer.from(body, "base64url").toString()) as SessionPayload;
-  if (!payload.userId || !payload.role || !payload.exp) return null;
+  if (!payload.userId || !payload.role || !payload.exp || !payload.pv) return null;
   if (payload.exp < Math.floor(Date.now() / 1000)) return null;
   return payload;
 }

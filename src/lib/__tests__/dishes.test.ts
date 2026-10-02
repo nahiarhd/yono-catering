@@ -1,5 +1,5 @@
 import assert from "assert";
-import { parseDefaultDishes, normalizeDishKey, dishLabelForKey } from "../dishes";
+import { parseDefaultDishes, normalizeDishKey } from "../dishes";
 
 async function main() {
   assert.strictEqual(normalizeDishKey("  Nasi Padang "), "nasi padang");
@@ -64,8 +64,6 @@ async function main() {
     addOns: [],
   });
 
-  // dishLabelForKey
-  assert.strictEqual(dishLabelForKey(parsedFromObjects, "soto betawi"), "Soto Betawi");
   // formatSubDishes
   const { formatSubDishes } = await import("../dishes");
   assert.strictEqual(formatSubDishes(["Bakmi Goreng", "Nasi Goreng"]), "Bakmi Goreng, Nasi Goreng");
@@ -108,6 +106,31 @@ async function main() {
   assert.strictEqual(
     computeSelectionDish({ isMultiDish: false, selectedDish: "", selectedVariant: "" }),
     ""
+  );
+
+  // resolveMenuSelection
+  const { resolveMenuSelection } = await import("../dishes");
+  const single = { dish: "Soto", subDishes: "Ayam, Sapi", addOns: "Telur, Kerupuk" };
+  assert.deepStrictEqual(
+    resolveMenuSelection(single, { selectedDish: "Soto", selectedVariant: "ayam", addOns: "kerupuk, Rokok" }),
+    { swapDish: "Ayam", addOns: "Kerupuk" },
+  );
+  assert.strictEqual(
+    resolveMenuSelection(single, { selectedDish: "Soto", selectedVariant: "Kambing", addOns: "" }),
+    "variantRequired",
+  );
+  const multi = { dish: "Bakmi, Nasi Goreng", subDishes: "Pedas, Sedang", addOns: null };
+  assert.deepStrictEqual(
+    resolveMenuSelection(multi, { selectedDish: "nasi goreng", selectedVariant: "Pedas", addOns: "Telur" }),
+    { swapDish: "Nasi Goreng (Pedas)", addOns: null },
+  );
+  assert.strictEqual(
+    resolveMenuSelection(multi, { selectedDish: "Pizza", selectedVariant: "Pedas", addOns: "" }),
+    "dishRequired",
+  );
+  assert.deepStrictEqual(
+    resolveMenuSelection({ dish: "Gado-gado", subDishes: null, addOns: null }, { selectedDish: "Gado-gado", selectedVariant: "", addOns: "" }),
+    { swapDish: null, addOns: null },
   );
 
   console.log("dishes.test.ts ok");
