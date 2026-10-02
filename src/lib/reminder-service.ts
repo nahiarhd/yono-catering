@@ -2,7 +2,6 @@ import { db } from "@/lib/db";
 import { nowInHousehold, parseDateKey, todayKey } from "@/lib/dates";
 import { getSettings } from "@/lib/settings";
 import { parseHHMM, effectiveCutoff } from "@/lib/cutoff";
-import { sendPush } from "@/lib/push";
 import {
   getAppUrl,
   formatReminderMessage,
@@ -105,21 +104,7 @@ export async function checkAndSendReminders(options?: {
     };
   }
 
-  // 1. Kirim Web Push (jika tersedia)
-  try {
-    await sendPush(
-      pendingMembers.map((m) => m.id),
-      {
-        title: "Pengingat Katering Pak Yono",
-        body: `Jangan lupa tentukan pilihan menu ${menu.dish} sebelum ${cutoff} WIB.`,
-        url: "/home",
-      }
-    );
-  } catch (err) {
-    console.error("Gagal mengirim web push pengingat:", err);
-  }
-
-  // 2. Kirim pesan Telegram personal ke anggota yang memiliki Telegram Chat ID
+  // Kirim pesan Telegram personal ke anggota yang memiliki Telegram Chat ID
   const withTelegram = pendingMembers.filter(
     (m) => m.telegramChatId && m.telegramChatId.trim().length > 0
   );

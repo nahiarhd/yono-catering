@@ -5,7 +5,6 @@ import { db } from "@/lib/db";
 import { requireYono } from "@/lib/auth";
 import { parseHHMM, effectiveCutoff } from "@/lib/cutoff";
 import { getMenuDay, upsertMenu } from "@/lib/menu-data";
-import { sendPush } from "@/lib/push";
 import { getSettings } from "@/lib/settings";
 import { todayKey } from "@/lib/dates";
 import { id } from "@/lib/id";
@@ -62,12 +61,7 @@ export async function postMenuAction(
     const cutoff = effectiveCutoff(settings.standingCutoff, cutoffOverride);
     const members = await db.user.findMany({
       where: { role: { not: "yono" } },
-      select: { id: true, telegramChatId: true },
-    });
-    await sendPush(members.map((m) => m.id), {
-      title: id.push.menuTitle,
-      body: id.push.menuBody(dish, cutoff),
-      url: "/home",
+      select: { telegramChatId: true },
     });
 
     const telegramChatIds = members

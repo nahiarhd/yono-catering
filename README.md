@@ -1,6 +1,6 @@
 # Yono Catering
 
-Aplikasi pesan katering harian: Pak Yono posting menu, anggota pilih sebelum batas waktu, pengingat lewat Telegram dan web push.
+Aplikasi pesan katering harian: Pak Yono posting menu, anggota pilih sebelum batas waktu, pengingat lewat Telegram.
 
 ## Development
 

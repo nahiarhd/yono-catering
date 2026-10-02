@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifySessionToken } from "@/lib/session";
 
-const PUBLIC_PREFIXES = ["/login", "/api/cron", "/api/telegram", "/manifest.json", "/sw.js", "/icon"];
+const PUBLIC_PREFIXES = ["/login", "/api/cron", "/api/telegram", "/manifest.json", "/icon"];
 
 // ponytail: let public/ assets through without auth
 const PUBLIC_FILE = /\.(jpg|jpeg|png|webp|gif|svg|ico)$/i;

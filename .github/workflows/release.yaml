@@ -28,10 +28,6 @@ jobs:
     env:
       DATABASE_URL: "file:./build-temp.db"
       SESSION_SECRET: ${{ secrets.SESSION_SECRET || 'ci-secret-value-must-be-long-enough-32-chars-for-testing' }}
-      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BI5u_dummy_vapid_public_key_for_ci_build' }}
-      VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY || 'BI5u_dummy_vapid_public_key_for_ci_build' }}
-      VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY || 'dummy_vapid_private_key_for_ci_build' }}
-      VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT || 'mailto:ci@example.com' }}
       CRON_SECRET: ${{ secrets.CRON_SECRET || 'ci-cron-secret' }}
       HOUSEHOLD_TZ: "Asia/Jakarta"
 
@@ -177,12 +173,6 @@ jobs:
           # Session & Security (minimal 32 karakter acak)
           SESSION_SECRET="ganti-dengan-secret-acak-minimal-32-karakter"
 
-          # Web Push Notifications
-          VAPID_PUBLIC_KEY="ganti-dengan-vapid-public-key"
-          VAPID_PRIVATE_KEY="ganti-dengan-vapid-private-key"
-          VAPID_SUBJECT="mailto:admin@example.com"
-          NEXT_PUBLIC_VAPID_PUBLIC_KEY="ganti-dengan-vapid-public-key"
-
           # Cron secret endpoint /api/cron/reminder
           CRON_SECRET="ganti-dengan-cron-secret-anda"
 
@@ -223,7 +213,6 @@ jobs:
           Sesuaikan nilai:
           - `DATABASE_URL="file:./data.db"`
           - `SESSION_SECRET="string-rahasia-minimal-32-karakter"`
-          - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
           - `CRON_SECRET`
 
           ## Langkah 3: Inisialisasi Database (SQLite) & Seed

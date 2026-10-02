@@ -68,8 +68,6 @@ export const id = {
     swap: "Tidak",
     noMenu: "Belum ada menu untuk hari ini.",
     noMenuHint: "Cek lagi setelah Pak Yono posting menu.",
-    pushOn: "Pengingat aktif",
-    pushEnable: "Aktifkan pengingat",
   },
   response: {
     title: "Jawaban Kamu",
@@ -310,14 +308,6 @@ export const id = {
     cannotRemoveYono: "Akun Pak Yono tidak bisa dihapus.",
     cannotChangeSelfRole: "Tidak bisa mengubah peran akun sendiri.",
     cannotChangeYonoRole: "Peran Pak Yono tidak bisa diubah.",
-  },
-  push: {
-    morningTitle: "Selamat pagi, Pak Yono",
-    morningBody: "Menu hari ini apa, Pak Yono?",
-    menuTitle: "Menu diposting",
-    menuBody: (dish: string, cutoff: string) =>
-      `Hari ini: ${dish}. Jawab sebelum ${cutoff}.`,
-    defaultTitle: "Yono Catering",
   },
   tally: {
     empty: "Belum ada pesanan",
