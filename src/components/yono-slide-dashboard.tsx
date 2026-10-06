@@ -8,7 +8,12 @@ import type { DefaultDish } from "@/lib/dishes";
 import { parseSubDishes, computeSelectionDish } from "@/lib/dishes";
 import { Card, Button, Input, Label } from "@/components/ui";
 import { TelegramPingButton } from "@/components/telegram-ping-button";
-import { postMenuAction, recordMemberResponseAction, type ActionState } from "@/app/yono/actions";
+import {
+  postMenuAction,
+  recordMemberResponseAction,
+  resetMemberResponseAction,
+  type ActionState,
+} from "@/app/yono/actions";
 
 export interface PendingUser {
   id: string;
@@ -35,7 +40,7 @@ export interface YonoSlideDashboardProps {
     addOnBreakdown?: { name: string; count: number; users: string[] }[];
   } | null;
   eatingOrders: { name: string; dish?: string; addOns?: string | null; note?: string | null }[];
-  notEatingOrders: { name: string; note?: string | null }[];
+  notEatingOrders: { userId?: string; name: string; note?: string | null }[];
   pendingUsers: PendingUser[];
   cutoffText: string;
   waMessage: string;
@@ -713,16 +718,37 @@ export function YonoSlideDashboard({
             {/* Not Eating Orders List */}
             {notEatingOrders.length > 0 && (
               <div className="mt-4 border-t-2 border-black pt-3">
-                <p className="text-xs font-black uppercase text-[var(--text-muted)] mb-2">
-                  Daftar Tidak Ikut ({notEatingOrders.length} orang)
-                </p>
-                <ul className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-black uppercase text-[var(--text-muted)]">
+                    Daftar Tidak Ikut ({notEatingOrders.length} orang)
+                  </p>
+                  <span className="text-[11px] font-bold text-stone-600">
+                    {id.yono.restoreNotEatingHint}
+                  </span>
+                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {notEatingOrders.map((o) => (
                     <li
                       key={o.name}
-                      className="border-2 border-black bg-stone-100 px-2.5 py-1 text-xs font-bold shadow-[1px_1px_0px_#000]"
+                      className="border-2 border-black bg-stone-100 p-2 sm:p-2.5 flex items-center justify-between gap-2 shadow-[1px_1px_0px_#000]"
                     >
-                      {o.name}{o.note ? ` (${o.note})` : ""}
+                      <div className="flex flex-col min-w-0 pr-1">
+                        <span className="font-extrabold text-sm truncate text-black">
+                          {o.name}
+                        </span>
+                        {o.note && (
+                          <span className="text-xs text-[var(--text-muted)] italic font-medium truncate">
+                            Catatan: {o.note}
+                          </span>
+                        )}
+                      </div>
+                      {o.userId ? (
+                        <ResetMemberButton
+                          dateKey={dateKey}
+                          userId={o.userId}
+                          userName={o.name}
+                        />
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -759,6 +785,54 @@ export function YonoSlideDashboard({
             router.refresh();
           }}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Tombol untuk mengembalikan anggota dari daftar tidak ikut ke daftar belum absen
+ */
+function ResetMemberButton({
+  dateKey,
+  userId,
+  userName,
+}: {
+  dateKey: string;
+  userId: string;
+  userName: string;
+}) {
+  const router = useRouter();
+  const [state, formAction, isPending] = useActionState(
+    async (prev: ActionState, formData: FormData) => {
+      const res = await resetMemberResponseAction(prev, formData);
+      if (res.ok) {
+        router.refresh();
+      }
+      return res;
+    },
+    {}
+  );
+
+  return (
+    <div className="shrink-0 flex flex-col items-end">
+      <form action={formAction}>
+        <input type="hidden" name="dateKey" value={dateKey} />
+        <input type="hidden" name="userId" value={userId} />
+        <button
+          type="submit"
+          disabled={isPending}
+          className="border-2 border-black bg-white hover:bg-amber-100 active:translate-y-0.5 px-3 py-1.5 text-xs font-black shadow-[1px_1px_0px_#000] cursor-pointer disabled:opacity-50 min-h-[44px] flex items-center justify-center transition-colors"
+          aria-label={id.yono.restoreNotEatingAria(userName)}
+          title={id.yono.restoreNotEatingAria(userName)}
+        >
+          {isPending ? id.yono.restoringNotEating : id.yono.restoreNotEating}
+        </button>
+      </form>
+      {state?.error && (
+        <p className="text-xs text-rose-600 font-bold mt-1" role="alert">
+          {state.error}
+        </p>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 export type WhatsAppOrder = {
+  userId?: string;
   name: string;
   dish?: string;
   addOns?: string | null;

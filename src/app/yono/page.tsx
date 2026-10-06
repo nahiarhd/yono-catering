@@ -55,6 +55,7 @@ export default async function YonoHomePage() {
   const notEatingOrders: WhatsAppOrder[] = nonYonoResponses
     .filter((r) => !r.wants)
     .map((r) => ({
+      userId: r.userId,
       name: r.user.name,
       dish: undefined,
       addOns: undefined,

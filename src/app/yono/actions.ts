@@ -262,3 +262,34 @@ export async function recordMemberResponseAction(
   broadcastRealtime("revalidate");
   return { ok: true };
 }
+
+export async function resetMemberResponseAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireYono();
+
+  const dateKey = String(formData.get("dateKey") ?? "").trim();
+  const userId = String(formData.get("userId") ?? "").trim();
+
+  if (!dateKey || !userId) {
+    return { error: "Data anggota tidak lengkap." };
+  }
+
+  const { menu } = await getMenuDay(dateKey);
+  if (!menu) {
+    return { error: id.errors.noMenu };
+  }
+
+  await db.response.deleteMany({
+    where: {
+      menuId: menu.id,
+      userId,
+    },
+  });
+
+  revalidatePath("/yono");
+  revalidatePath("/home");
+  broadcastRealtime("revalidate");
+  return { ok: true };
+}
