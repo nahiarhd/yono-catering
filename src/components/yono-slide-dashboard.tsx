@@ -2,7 +2,6 @@
 
 import { useState, useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { id } from "@/lib/id";
 import type { DefaultDish } from "@/lib/dishes";
 import { parseSubDishes, computeSelectionDish } from "@/lib/dishes";
@@ -59,18 +58,14 @@ export function YonoSlideDashboard({
   notEatingOrders,
   pendingUsers,
   cutoffText,
-  waMessage,
   waUrl,
 }: YonoSlideDashboardProps) {
   const router = useRouter();
-  const t = id.yono;
   const tWa = id.whatsapp;
 
   // Active step: if menu exists, default to Slide 2 (Rekap). Otherwise Slide 1 (Pilih Menu).
   const [activeStep, setActiveStep] = useState<1 | 2>(menu ? 2 : 1);
   const [selectedPendingUser, setSelectedPendingUser] = useState<PendingUser | null>(null);
-  const [copiedWa, setCopiedWa] = useState(false);
-  const [showWaPreview, setShowWaPreview] = useState(false);
 
   // Form state for Menu Form
   const [dish, setDish] = useState(menu?.dish ?? "");
@@ -106,28 +101,6 @@ export function YonoSlideDashboard({
         ? preset.addOns.join(", ")
         : ""
     );
-  }
-
-  async function handleCopyWa() {
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(waMessage);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = waMessage;
-        textarea.style.position = "fixed";
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
-      setCopiedWa(true);
-      setTimeout(() => setCopiedWa(false), 2500);
-    } catch {
-      setCopiedWa(false);
-    }
   }
 
   const totalAnswered = eatingOrders.length + notEatingOrders.length;
@@ -416,6 +389,9 @@ export function YonoSlideDashboard({
                     {selectedPreset.warung}
                   </span>
                 )}
+                <span className="border-2 border-black bg-[var(--primary)] px-2.5 py-0.5 text-xs font-black uppercase shadow-[1px_1px_0px_#000]">
+                  {tally?.total ?? 0} Porsi
+                </span>
               </div>
               {parsedActiveDishes.length > 1 ? (
                 <div>
@@ -482,127 +458,7 @@ export function YonoSlideDashboard({
             </button>
           </div>
 
-          {/* BOX 1: WHATSAPP SHARE CARD & PORSI SUMMARY */}
-          <Card className="border-3 border-black shadow-[4px_4px_0px_#000]">
-            <div className="flex items-center justify-between gap-2 border-b-2 border-black pb-2.5">
-              <div>
-                <h3 className="text-base sm:text-lg font-black text-black">
-                  📲 Kirim Rekap ke WhatsApp
-                </h3>
-                <p className="text-xs font-medium text-[var(--text-muted)]">
-                  Kirim daftar pesanan katering ke WhatsApp untuk belanja atau salin format teksnya.
-                </p>
-              </div>
-              <span className="border-2 border-black bg-[var(--primary)] px-2.5 py-1 text-xs font-black uppercase shadow-[2px_2px_0px_#000]">
-                {tally?.total ?? 0} Porsi
-              </span>
-            </div>
 
-            {/* Quick Action Buttons: Send to WA & Copy & Export PDF */}
-            <div className="mt-4 flex flex-col sm:flex-row gap-2.5">
-              <a
-                href={waUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="neo-btn flex-1 text-center font-black !bg-[#25D366] !text-black hover:brightness-105 active:translate-x-[2px] active:translate-y-[2px] min-h-[52px] text-base border-2 border-black shadow-[3px_3px_0px_#000]"
-              >
-                <span>💬</span>
-                <span>{tWa.sendButton}</span>
-              </a>
-              <Button
-                type="button"
-                onClick={handleCopyWa}
-                className="flex-1 font-extrabold min-h-[52px] text-sm border-2 border-black shadow-[3px_3px_0px_#000] bg-white hover:bg-stone-50"
-                aria-label={tWa.copyButton}
-              >
-                <span>📋</span>
-                <span>{copiedWa ? tWa.copied : tWa.copyButton}</span>
-              </Button>
-              <Link
-                href="/reports"
-                className="neo-btn flex-1 font-extrabold min-h-[52px] text-sm border-2 border-black shadow-[3px_3px_0px_#000] bg-white hover:bg-stone-50 text-center"
-              >
-                <span>📄</span>
-                <span>{id.reports.title}</span>
-              </Link>
-            </div>
-
-            <div aria-live="polite" className="sr-only">
-              {copiedWa ? tWa.copied : ""}
-            </div>
-
-            {/* Portion Breakdown Cards */}
-            <div className="mt-4 border-t-2 border-black pt-3">
-              <p className="text-xs font-black uppercase tracking-wider text-[var(--text-muted)] mb-2">
-                {t.portionBreakdown}
-              </p>
-              {tally && tally.breakdown.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {tally.breakdown.map((item) => (
-                    <div
-                      key={item.dish}
-                      className="border-2 border-black bg-stone-50 p-2.5 flex justify-between items-center font-bold"
-                    >
-                      <span className="text-sm">{item.dish}</span>
-                      <span className="border-2 border-black bg-[var(--primary)] px-2.5 py-0.5 text-xs font-black">
-                        {item.count} porsi
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm italic text-[var(--text-muted)]">Belum ada pesanan yang masuk.</p>
-              )}
-              <p className="mt-2 text-right text-sm font-black">
-                {t.totalPortions(tally?.total ?? 0)}
-              </p>
-
-              {tally?.addOnBreakdown && tally.addOnBreakdown.length > 0 && (
-                <div className="mt-3 border-t-2 border-black pt-3">
-                  <p className="text-xs font-black uppercase text-[var(--text-muted)] mb-2">
-                    🍳 Tambahan / Add-on Dipesan:
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {tally.addOnBreakdown.map((item) => (
-                      <div
-                        key={item.name}
-                        className="border-2 border-black bg-emerald-50 p-2.5 flex justify-between items-center shadow-[2px_2px_0px_#000]"
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-sm font-black">+ {item.name}</span>
-                          <span className="text-[11px] text-stone-600 font-medium">
-                            {item.users.join(", ")}
-                          </span>
-                        </div>
-                        <span className="border-2 border-black bg-emerald-300 px-2.5 py-0.5 text-xs font-black">
-                          {item.count} porsi
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* WhatsApp Text Preview Accordion */}
-            <div className="mt-3 border-t-2 border-black pt-2.5">
-              <button
-                type="button"
-                onClick={() => setShowWaPreview((prev) => !prev)}
-                className="text-xs font-black uppercase tracking-wider underline hover:text-[var(--primary-dark,#ca8a04)] cursor-pointer"
-              >
-                {showWaPreview ? "Sembunyikan Preview Teks WA ▴" : "Lihat Format Teks WhatsApp ▾"}
-              </button>
-
-              {showWaPreview && (
-                <div className="mt-2 border-2 border-black bg-[var(--surface-sunken)] p-3 text-xs font-mono">
-                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words leading-relaxed select-all">
-                    {waMessage}
-                  </pre>
-                </div>
-              )}
-            </div>
-          </Card>
 
           {/* BOX 2: SIAPA YANG BELUM ABSEN & TELEGRAM REMINDER */}
           <Card className="border-3 border-black shadow-[4px_4px_0px_#000]">
@@ -756,16 +612,25 @@ export function YonoSlideDashboard({
             )}
           </Card>
 
-          {/* Bottom Back Button to Slide 1 */}
-          <div className="pt-2">
+          {/* Bottom Action Buttons: Kembali ke Pilihan Menu & Kirim ke WhatsApp */}
+          <div className="pt-2 flex flex-col sm:flex-row gap-3">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setActiveStep(1)}
-              className="w-full min-h-[50px] text-base font-black border-3 border-black shadow-[4px_4px_0px_#000] bg-white hover:bg-stone-50"
+              className="flex-1 min-h-[52px] text-base font-black border-3 border-black shadow-[4px_4px_0px_#000] bg-white hover:bg-stone-50 active:translate-x-[2px] active:translate-y-[2px]"
             >
               ← Kembali ke Pilihan Menu
             </Button>
+            <a
+              href={waUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="neo-btn flex-1 text-center font-black !bg-[#25D366] !text-black hover:brightness-105 active:translate-x-[2px] active:translate-y-[2px] min-h-[52px] text-base border-3 border-black shadow-[4px_4px_0px_#000] flex items-center justify-center gap-2"
+            >
+              <span>💬</span>
+              <span>{tWa.sendButton}</span>
+            </a>
           </div>
         </div>
       )}
