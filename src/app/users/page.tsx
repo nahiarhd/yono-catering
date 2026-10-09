@@ -8,19 +8,36 @@ import { UsersTable } from "./users-table";
 export default async function UsersPage() {
   const user = await requireStrictAdmin();
 
-  const rawUsers = await db.user.findMany({
-    orderBy: [
-      { role: "asc" },
-      { name: "asc" },
-    ],
-    select: {
-      id: true,
-      name: true,
-      role: true,
-      telegramChatId: true,
-      createdAt: true,
-    },
-  });
+  const [rawUsers, rawGroups] = await Promise.all([
+    db.user.findMany({
+      orderBy: [
+        { role: "asc" },
+        { name: "asc" },
+      ],
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        telegramChatId: true,
+        groupId: true,
+        group: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        createdAt: true,
+      },
+    }),
+    db.group.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        _count: {
+          select: { users: true },
+        },
+      },
+    }),
+  ]);
 
   // Sort so yono is first, then admin, then member
   const rolePriority: Record<string, number> = {
@@ -40,7 +57,15 @@ export default async function UsersPage() {
     name: u.name,
     role: u.role,
     telegramChatId: u.telegramChatId,
+    groupId: u.groupId,
+    groupName: u.group?.name ?? null,
     createdAt: u.createdAt.toISOString(),
+  }));
+
+  const groups = rawGroups.map((g) => ({
+    id: g.id,
+    name: g.name,
+    userCount: g._count.users,
   }));
 
   return (
@@ -55,7 +80,7 @@ export default async function UsersPage() {
         </p>
       </div>
 
-      <UsersTable users={users} currentUserId={user.id} />
+      <UsersTable users={users} groups={groups} currentUserId={user.id} />
     </PageShell>
   );
 }

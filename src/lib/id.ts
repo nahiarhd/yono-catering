@@ -40,6 +40,8 @@ export const id = {
     errorWrong: "Nama atau PIN salah.",
     errorLocked: (minutes: number) =>
       `Terlalu banyak PIN salah. Coba lagi dalam ${minutes} menit.`,
+    filterAllGroups: "Semua Group",
+    noGroup: "Tanpa Group",
   },
   time: {
     hour: "Jam",
@@ -291,6 +293,22 @@ export const id = {
     tableActions: "Aksi",
     searchPlaceholder: "Cari nama pengguna...",
     noUsersFound: "Pengguna tidak ditemukan.",
+    group: "Group",
+    noGroup: "Tanpa Group",
+    allGroups: "Semua Group",
+    manageGroups: "Kelola Group",
+    addGroup: "Tambah Group",
+    groupName: "Nama Group",
+    groupPlaceholder: "contoh: Divisi IT, HR, Sales",
+    groupAdded: "Group berhasil ditambahkan!",
+    groupRemoved: "Group berhasil dihapus!",
+    groupMoved: "Group berhasil dipindahkan!",
+    confirmRemoveGroup: (name: string) =>
+      `Yakin ingin menghapus group "${name}"? Anggota di dalamnya akan menjadi Tanpa Group.`,
+    filterGroup: "Filter Group",
+    moveGroup: "Pindah Group",
+    selectGroup: "Pilih Group",
+    totalGroups: (count: number) => `Total ${count} group`,
   },
   errors: {
     missingDay: "Hari tidak ditemukan.",
@@ -312,6 +330,9 @@ export const id = {
     cannotRemoveYono: "Akun Pak Yono tidak bisa dihapus.",
     cannotChangeSelfRole: "Tidak bisa mengubah peran akun sendiri.",
     cannotChangeYonoRole: "Peran Pak Yono tidak bisa diubah.",
+    groupNameRequired: "Nama group wajib diisi.",
+    groupNameTaken: "Nama group sudah ada.",
+    groupNotFound: "Group tidak ditemukan.",
   },
   tally: {
     empty: "Belum ada pesanan",

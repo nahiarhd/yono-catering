@@ -20,9 +20,16 @@ export async function addMemberAction(
   const rawRole = String(formData.get("role") ?? "member").trim();
   const role: Role = rawRole === "admin" ? "admin" : "member";
   const telegramChatId = String(formData.get("telegramChatId") ?? "").trim() || null;
+  const rawGroupId = String(formData.get("groupId") ?? "").trim();
+  const groupId = rawGroupId || null;
 
   if (!name || !pin) return { error: id.errors.namePinRequired };
   if (pin.length < 4) return { error: id.errors.pinMinLength };
+
+  if (groupId) {
+    const groupExists = await db.group.findUnique({ where: { id: groupId } });
+    if (!groupExists) return { error: id.errors.groupNotFound };
+  }
 
   if (telegramChatId && !/^-?\d+$/.test(telegramChatId)) {
     return {
@@ -35,10 +42,11 @@ export async function addMemberAction(
   if (exists) return { error: id.errors.nameTaken };
 
   await db.user.create({
-    data: { name, pinHash: await hashPin(pin), role, telegramChatId },
+    data: { name, pinHash: await hashPin(pin), role, telegramChatId, groupId },
   });
 
   revalidatePath("/users");
+  revalidatePath("/login");
   revalidatePath("/settings");
   broadcastRealtime("revalidate");
   return { ok: true };
@@ -147,6 +155,85 @@ export async function removeMemberAction(
 
   await db.user.delete({ where: { id: memberId } });
   revalidatePath("/users");
+  revalidatePath("/login");
   broadcastRealtime("revalidate");
   return { ok: true };
 }
+
+export async function createGroupAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireStrictAdmin();
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { error: id.errors.groupNameRequired };
+
+  const existing = await db.group.findFirst({
+    where: { name: { equals: name } },
+  });
+  if (existing) return { error: id.errors.groupNameTaken };
+
+  await db.group.create({
+    data: { name },
+  });
+
+  revalidatePath("/users");
+  revalidatePath("/login");
+  broadcastRealtime("revalidate");
+  return { ok: true };
+}
+
+export async function deleteGroupAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireStrictAdmin();
+
+  const groupId = String(formData.get("groupId") ?? "").trim();
+  if (!groupId) return { error: id.errors.groupNotFound };
+
+  const existing = await db.group.findUnique({ where: { id: groupId } });
+  if (!existing) return { error: id.errors.groupNotFound };
+
+  await db.group.delete({
+    where: { id: groupId },
+  });
+
+  revalidatePath("/users");
+  revalidatePath("/login");
+  broadcastRealtime("revalidate");
+  return { ok: true };
+}
+
+export async function updateUserGroupAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireStrictAdmin();
+
+  const memberId = String(formData.get("memberId") ?? "").trim();
+  const rawGroupId = String(formData.get("groupId") ?? "").trim();
+  const groupId = rawGroupId === "" ? null : rawGroupId;
+
+  if (!memberId) return { error: id.errors.memberNotFound };
+
+  const target = await db.user.findUnique({ where: { id: memberId } });
+  if (!target) return { error: id.errors.memberNotFound };
+
+  if (groupId) {
+    const groupExists = await db.group.findUnique({ where: { id: groupId } });
+    if (!groupExists) return { error: id.errors.groupNotFound };
+  }
+
+  await db.user.update({
+    where: { id: memberId },
+    data: { groupId },
+  });
+
+  revalidatePath("/users");
+  revalidatePath("/login");
+  broadcastRealtime("revalidate");
+  return { ok: true };
+}
+
