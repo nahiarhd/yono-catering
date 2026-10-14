@@ -7,6 +7,7 @@ import {
   formatReminderMessage,
   sendTelegramMessage,
 } from "@/lib/telegram";
+import { orderEntryKeyboard } from "@/lib/telegram-order";
 
 export interface ReminderResult {
   triggered: boolean;
@@ -121,7 +122,9 @@ export async function checkAndSendReminders(options?: {
           cutoff,
           appUrl,
         });
-        return sendTelegramMessage(m.telegramChatId!, text);
+        return sendTelegramMessage(m.telegramChatId!, text, {
+          replyMarkup: { inline_keyboard: orderEntryKeyboard(dateKey, appUrl) },
+        });
       })
     );
 

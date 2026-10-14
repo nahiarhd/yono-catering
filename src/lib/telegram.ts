@@ -94,7 +94,7 @@ export function formatReminderMessage({
 export async function sendTelegramMessage(
   chatId: string,
   text: string,
-  options?: { parseMode?: "HTML" | "Markdown" }
+  options?: { parseMode?: "HTML" | "Markdown"; replyMarkup?: unknown }
 ): Promise<{ ok: boolean; error?: string; messageId?: number }> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
@@ -126,6 +126,7 @@ export async function sendTelegramMessage(
         text,
         parse_mode: options?.parseMode ?? "HTML",
         disable_web_page_preview: true,
+        reply_markup: options?.replyMarkup,
       }),
     });
 
@@ -150,7 +151,8 @@ export async function sendTelegramMessage(
 
 export async function sendTelegramBroadcast(
   chatIds: string[],
-  text: string
+  text: string,
+  replyMarkup?: unknown
 ): Promise<{ sentCount: number; failedCount: number }> {
   const validChatIds = Array.from(new Set(chatIds.map((c) => c.trim()).filter(Boolean)));
   if (validChatIds.length === 0) {
@@ -161,7 +163,7 @@ export async function sendTelegramBroadcast(
   let failedCount = 0;
 
   const results = await Promise.allSettled(
-    validChatIds.map((chatId) => sendTelegramMessage(chatId, text))
+    validChatIds.map((chatId) => sendTelegramMessage(chatId, text, { replyMarkup }))
   );
 
   for (const r of results) {
@@ -173,4 +175,25 @@ export async function sendTelegramBroadcast(
   }
 
   return { sentCount, failedCount };
+}
+
+/** For calls whose failure only means a stale button (edit, answer callback): logs instead of throwing. */
+export async function callTelegram(method: string, body: Record<string, unknown>): Promise<boolean> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return false;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!data.ok && !String(data.description).includes("message is not modified")) {
+      console.error(`Telegram ${method} gagal:`, data.description);
+    }
+    return Boolean(data.ok);
+  } catch (err) {
+    console.error(`Telegram ${method} gagal:`, err);
+    return false;
+  }
 }

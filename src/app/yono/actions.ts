@@ -18,6 +18,7 @@ import {
 } from "@/lib/telegram";
 
 import { parseSubDishes, formatSubDishes, computeSelectionDish } from "@/lib/dishes";
+import { orderEntryKeyboard } from "@/lib/telegram-order";
 import { broadcastRealtime } from "@/lib/realtime";
 
 export type ActionState = { error?: string; ok?: boolean };
@@ -78,7 +79,9 @@ export async function postMenuAction(
           note: menuNote,
           appUrl: getAppUrl(),
         });
-        await sendTelegramBroadcast(telegramChatIds, broadcastText);
+        await sendTelegramBroadcast(telegramChatIds, broadcastText, {
+          inline_keyboard: orderEntryKeyboard(dateKey, getAppUrl()),
+        });
       } catch (err) {
         console.error("Gagal mengirim broadcast Telegram:", err);
       }
@@ -135,7 +138,9 @@ export async function pingTelegramRemindersAction(
         cutoff,
         appUrl,
       });
-      return sendTelegramMessage(m.telegramChatId!, text);
+      return sendTelegramMessage(m.telegramChatId!, text, {
+        replyMarkup: { inline_keyboard: orderEntryKeyboard(dateKey, appUrl) },
+      });
     })
   );
 
