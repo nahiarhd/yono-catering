@@ -24,6 +24,7 @@ export interface YonoSlideDashboardProps {
   dateDisplay: string;
   menu: {
     id: string;
+    vendor: string;
     dish: string;
     subDishes?: string | null;
     addOns?: string | null;
@@ -68,6 +69,7 @@ export function YonoSlideDashboard({
   const [selectedPendingUser, setSelectedPendingUser] = useState<PendingUser | null>(null);
 
   // Form state for Menu Form
+  const [vendor, setVendor] = useState(menu?.vendor ?? "");
   const [dish, setDish] = useState(menu?.dish ?? "");
   const [subDishes, setSubDishes] = useState(menu?.subDishes ?? "");
   const [addOns, setAddOns] = useState(menu?.addOns ?? "");
@@ -77,7 +79,9 @@ export function YonoSlideDashboard({
     async (prev: ActionState, formData: FormData) => {
       const res = await postMenuAction(prev, formData);
       if (res.ok) {
-        router.refresh();
+        // A new warung lives under its own ?m tab, so move there instead of staying on ?m=new
+        if (!menu && res.menuId) router.replace(`/yono?m=${res.menuId}`);
+        else router.refresh();
         setActiveStep(2);
       }
       return res;
@@ -90,6 +94,7 @@ export function YonoSlideDashboard({
   );
 
   function handleSelectPreset(preset: DefaultDish) {
+    setVendor(preset.warung ?? "");
     setDish(preset.name);
     setSubDishes(
       preset.subDishes && preset.subDishes.length > 0
@@ -111,10 +116,6 @@ export function YonoSlideDashboard({
   const parsedActiveSubDishes = menu ? parseSubDishes(menu.subDishes) : [];
   const parsedActiveAddOns = menu ? parseSubDishes(menu.addOns) : [];
   const parsedActiveDishes = menu ? parseSubDishes(menu.dish) : [];
-
-  const selectedPreset = parsedPresets.find(
-    (p) => dish.trim().toLowerCase() === p.name.trim().toLowerCase()
-  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -143,6 +144,8 @@ export function YonoSlideDashboard({
 
           <form action={formAction} className="mt-4 flex flex-col gap-4">
             <input type="hidden" name="dateKey" value={dateKey} />
+            <input type="hidden" name="menuId" value={menu?.id ?? ""} />
+            <input type="hidden" name="vendor" value={vendor} />
 
             {/* Quick Menu Preset Cards from Admin */}
             {parsedPresets.length > 0 ? (
@@ -210,9 +213,9 @@ export function YonoSlideDashboard({
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 border border-black inline-block animate-pulse"></span>
                     Detail Menu yang Dipilih:
                   </span>
-                  {selectedPreset?.warung && (
+                  {vendor && vendor !== dish && (
                     <span className="text-xs font-black uppercase bg-amber-300 border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]">
-                      🏪 {selectedPreset.warung}
+                      🏪 {vendor}
                     </span>
                   )}
                 </div>
@@ -324,6 +327,19 @@ export function YonoSlideDashboard({
               </summary>
               <div className="mt-3 flex flex-col gap-3 pt-3 border-t border-stone-200">
                 <div>
+                  <Label htmlFor="yono-vendor-input" className="text-xs font-bold uppercase text-black">
+                    Nama Warung:
+                  </Label>
+                  <Input
+                    id="yono-vendor-input"
+                    placeholder="contoh: Ayam Bakar Bu Sri"
+                    value={vendor}
+                    onChange={(e) => setVendor(e.target.value)}
+                    className="text-sm font-bold min-h-[44px] border-2 border-black bg-white"
+                  />
+                </div>
+
+                <div>
                   <Label htmlFor="yono-dish-input" className="text-xs font-bold uppercase text-black">
                     Nama Menu Masakan:
                   </Label>
@@ -384,9 +400,9 @@ export function YonoSlideDashboard({
                 <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                   Menu Hari Ini ({dateDisplay}):
                 </span>
-                {selectedPreset?.warung && (
+                {menu.vendor && menu.vendor !== menu.dish && (
                   <span className="text-[11px] font-black uppercase bg-amber-300 border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]">
-                    {selectedPreset.warung}
+                    {menu.vendor}
                   </span>
                 )}
                 <span className="border-2 border-black bg-[var(--primary)] px-2.5 py-0.5 text-xs font-black uppercase shadow-[1px_1px_0px_#000]">
@@ -396,7 +412,7 @@ export function YonoSlideDashboard({
               {parsedActiveDishes.length > 1 ? (
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black text-black">
-                    {selectedPreset?.warung || "Pilihan Menu Hari Ini"}
+                    {menu.vendor || "Pilihan Menu Hari Ini"}
                   </h2>
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {parsedActiveDishes.map((item) => (
@@ -601,6 +617,7 @@ export function YonoSlideDashboard({
                       {o.userId ? (
                         <ResetMemberButton
                           dateKey={dateKey}
+                          menuId={menu.id}
                           userId={o.userId}
                           userName={o.name}
                         />
@@ -640,6 +657,7 @@ export function YonoSlideDashboard({
         <RecordResponseModal
           user={selectedPendingUser}
           dateKey={dateKey}
+          menuId={menu.id}
           menuDish={menu.dish}
           dishOptions={parsedActiveDishes}
           subDishes={parsedActiveSubDishes}
@@ -660,10 +678,12 @@ export function YonoSlideDashboard({
  */
 function ResetMemberButton({
   dateKey,
+  menuId,
   userId,
   userName,
 }: {
   dateKey: string;
+  menuId: string;
   userId: string;
   userName: string;
 }) {
@@ -683,6 +703,7 @@ function ResetMemberButton({
     <div className="shrink-0 flex flex-col items-end">
       <form action={formAction}>
         <input type="hidden" name="dateKey" value={dateKey} />
+        <input type="hidden" name="menuId" value={menuId} />
         <input type="hidden" name="userId" value={userId} />
         <button
           type="submit"
@@ -709,6 +730,7 @@ function ResetMemberButton({
 function RecordResponseModal({
   user,
   dateKey,
+  menuId,
   menuDish,
   dishOptions,
   subDishes,
@@ -718,6 +740,7 @@ function RecordResponseModal({
 }: {
   user: PendingUser;
   dateKey: string;
+  menuId: string;
   menuDish: string;
   dishOptions?: string[];
   subDishes: string[];
@@ -811,6 +834,7 @@ function RecordResponseModal({
         {/* Form */}
         <form action={formAction} className="mt-4 flex flex-col gap-4">
           <input type="hidden" name="dateKey" value={dateKey} />
+          <input type="hidden" name="menuId" value={menuId} />
           <input type="hidden" name="userId" value={user.id} />
           <input type="hidden" name="wants" value={wants ? "yes" : "no"} />
           {wants && (

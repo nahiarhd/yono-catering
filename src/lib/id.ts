@@ -314,6 +314,7 @@ export const id = {
     missingDay: "Hari tidak ditemukan.",
     swapRequired: "Pilihan wajib diisi.",
     noMenu: "Belum ada menu untuk hari ini.",
+    vendorTaken: "Warung ini sudah punya menu hari ini. Buka tab warungnya untuk mengubah.",
     locked: "Jawaban sudah terkunci hari ini.",
     cannotOrder: "Akun ini tidak bisa memesan.",
     dishRequired: "Menu wajib diisi.",

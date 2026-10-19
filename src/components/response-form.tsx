@@ -20,6 +20,7 @@ export function ResponseForm({
   action,
   locked,
   dateKey,
+  menuId,
   dish,
   dishOptions = [],
   subDishes = [],
@@ -30,6 +31,7 @@ export function ResponseForm({
   action: (prev: State, formData: FormData) => Promise<State>;
   locked: boolean;
   dateKey: string;
+  menuId: string;
   dish: string;
   dishOptions?: string[];
   subDishes?: string[];
@@ -163,6 +165,7 @@ export function ResponseForm({
         className="neo-response-form"
       >
         <input type="hidden" name="dateKey" value={dateKey} />
+        <input type="hidden" name="menuId" value={menuId} />
         <input type="hidden" name="wants" value={wants ? "yes" : "no"} />
         <input type="hidden" name="subDish" value={wants ? computedSubDish : ""} />
         <input type="hidden" name="selectedDish" value={wants ? selectedDish : ""} />

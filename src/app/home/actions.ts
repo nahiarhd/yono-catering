@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { canOrder, requireUser } from "@/lib/auth";
-import { getMenuDay } from "@/lib/menu-data";
+import { getMenuDay, saveResponse } from "@/lib/menu-data";
 import { normalizeDishKey, parseSubDishes, resolveMenuSelection } from "@/lib/dishes";
 import { upsertDishPreference } from "@/lib/preferences";
 import { todayKey } from "@/lib/dates";
@@ -47,7 +47,7 @@ export async function submitResponseAction(
 
   if (!dateKey || dateKey < todayKey()) return { error: id.errors.missingDay };
 
-  const { menu, locked } = await getMenuDay(dateKey);
+  const { menu, locked } = await getMenuDay(dateKey, String(formData.get("menuId") ?? ""));
   if (!menu) return { error: id.errors.noMenu };
   if (locked) return { error: id.errors.locked };
 
@@ -64,23 +64,7 @@ export async function submitResponseAction(
     ({ swapDish, addOns } = selection);
   }
 
-  await db.response.upsert({
-    where: { menuId_userId: { menuId: menu.id, userId: user.id } },
-    create: {
-      menuId: menu.id,
-      userId: user.id,
-      wants,
-      swapDish,
-      addOns,
-      note,
-    },
-    update: {
-      wants,
-      swapDish,
-      addOns,
-      note,
-    },
-  });
+  await saveResponse(menu, user.id, { wants, swapDish, addOns, note });
 
   if (saveAsPreference) {
     await upsertDishPreference(user.id, menu.dish, { wants, swapDish, addOns, note });

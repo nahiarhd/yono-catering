@@ -19,7 +19,7 @@ export default async function SettingsPage() {
     ? await Promise.all([
         getSettings(),
         getDefaultDishes(),
-        db.menu.findUnique({ where: { date: parseDateKey(todayKey()) } }),
+        db.menu.findFirst({ where: { date: parseDateKey(todayKey()) }, orderBy: { createdAt: "asc" } }),
         db.user.count({ where: { role: { not: "yono" }, telegramChatId: { not: null } } }),
         db.user.count({ where: { role: { not: "yono" } } }),
       ])

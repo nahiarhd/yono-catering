@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireYono } from "@/lib/auth";
 import { parseHHMM, effectiveCutoff } from "@/lib/cutoff";
-import { getMenuDay, upsertMenu } from "@/lib/menu-data";
+import { getMenuDay, saveResponse, upsertMenu } from "@/lib/menu-data";
 import { getSettings } from "@/lib/settings";
 import { todayKey } from "@/lib/dates";
 import { id } from "@/lib/id";
@@ -21,7 +21,7 @@ import { parseSubDishes, formatSubDishes, computeSelectionDish } from "@/lib/dis
 import { orderEntryKeyboard } from "@/lib/telegram-order";
 import { broadcastRealtime } from "@/lib/realtime";
 
-export type ActionState = { error?: string; ok?: boolean };
+export type ActionState = { error?: string; ok?: boolean; menuId?: string };
 
 export async function postMenuAction(
   _prev: ActionState,
@@ -30,7 +30,10 @@ export async function postMenuAction(
   await requireYono();
 
   const dateKey = String(formData.get("dateKey") ?? "");
+  const menuId = String(formData.get("menuId") ?? "").trim() || null;
   const dish = String(formData.get("dish") ?? "").trim();
+  // Same fallback as the preset cards: no warung name means the dish names the warung
+  const vendor = String(formData.get("vendor") ?? "").trim() || dish;
   const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
   const subDishesList = parseSubDishes(subDishesRaw);
   const subDishes = subDishesList.length > 0 ? formatSubDishes(subDishesList) : null;
@@ -48,9 +51,13 @@ export async function postMenuAction(
   }
 
   const settings = await getSettings();
-  const existing = await getMenuDay(dateKey);
-  await upsertMenu({
-    dateKey,
+  const { menus } = await getMenuDay(dateKey);
+  if (menus.some((m) => m.vendor === vendor && m.id !== menuId)) {
+    return { error: id.errors.vendorTaken };
+  }
+  const isNew = !menuId && !menus.some((m) => m.vendor === vendor);
+  const saved = await upsertMenu(dateKey, menuId, {
+    vendor,
     dish,
     subDishes,
     addOns,
@@ -58,7 +65,7 @@ export async function postMenuAction(
     cutoffOverride,
   });
 
-  if (!existing.menu) {
+  if (isNew) {
     const cutoff = effectiveCutoff(settings.standingCutoff, cutoffOverride);
     const members = await db.user.findMany({
       where: { role: { not: "yono" } },
@@ -91,7 +98,7 @@ export async function postMenuAction(
   revalidatePath("/yono");
   revalidatePath("/home");
   broadcastRealtime("revalidate");
-  return { ok: true };
+  return { ok: true, menuId: saved.id };
 }
 
 export async function pingTelegramRemindersAction(
@@ -99,7 +106,7 @@ export async function pingTelegramRemindersAction(
 ): Promise<{ ok: boolean; count?: number; error?: string }> {
   await requireYono();
 
-  const { menu, settings } = await getMenuDay(dateKey);
+  const { menu, menus, settings } = await getMenuDay(dateKey);
   if (!menu) {
     return { ok: false, error: id.errors.noMenu };
   }
@@ -107,8 +114,8 @@ export async function pingTelegramRemindersAction(
   const cutoff = effectiveCutoff(settings.standingCutoff, menu.cutoffOverride);
   const appUrl = getAppUrl();
 
-  const nonYonoResponses = menu.responses.filter((r) => r.user.role !== "yono");
-  const respondedUserIds = new Set(nonYonoResponses.map((r) => r.userId));
+  // Answering any warung counts as answered for the day
+  const respondedUserIds = new Set(menus.flatMap((m) => m.responses.map((r) => r.userId)));
 
   const pendingMembers = await db.user.findMany({
     where: {
@@ -134,7 +141,7 @@ export async function pingTelegramRemindersAction(
     validMembers.map((m) => {
       const text = formatReminderMessage({
         name: m.name,
-        dish: menu.dish,
+        dish: menus.map((m) => m.dish).join(" / "),
         cutoff,
         appUrl,
       });
@@ -202,7 +209,7 @@ export async function recordMemberResponseAction(
     return { error: "Data anggota tidak lengkap." };
   }
 
-  const { menu } = await getMenuDay(dateKey);
+  const { menu } = await getMenuDay(dateKey, String(formData.get("menuId") ?? ""));
   if (!menu) {
     return { error: id.errors.noMenu };
   }
@@ -244,22 +251,11 @@ export async function recordMemberResponseAction(
     }
   }
 
-  await db.response.upsert({
-    where: { menuId_userId: { menuId: menu.id, userId } },
-    create: {
-      menuId: menu.id,
-      userId,
-      wants,
-      swapDish: wants ? swapDish : null,
-      addOns,
-      note,
-    },
-    update: {
-      wants,
-      swapDish: wants ? swapDish : null,
-      addOns,
-      note,
-    },
+  await saveResponse(menu, userId, {
+    wants,
+    swapDish: wants ? swapDish : null,
+    addOns,
+    note,
   });
 
   revalidatePath("/yono");
@@ -281,7 +277,7 @@ export async function resetMemberResponseAction(
     return { error: "Data anggota tidak lengkap." };
   }
 
-  const { menu } = await getMenuDay(dateKey);
+  const { menu } = await getMenuDay(dateKey, String(formData.get("menuId") ?? ""));
   if (!menu) {
     return { error: id.errors.noMenu };
   }

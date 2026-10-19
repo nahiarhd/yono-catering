@@ -10,12 +10,18 @@ import { db } from "@/lib/db";
 import { PageShell } from "@/components/ui";
 import { AppNav } from "@/components/nav";
 import { YonoSlideDashboard } from "@/components/yono-slide-dashboard";
+import { WarungTabs } from "@/components/warung-tabs";
 
-export default async function YonoHomePage() {
+export default async function YonoHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ m?: string }>;
+}) {
   const user = await requireYono();
+  const { m } = await searchParams;
   const dateKey = todayKey();
-  const [{ settings, menu, locked }, defaultDishes, eaters] = await Promise.all([
-    getMenuDay(dateKey),
+  const [day, defaultDishes, eaters] = await Promise.all([
+    getMenuDay(dateKey, m),
     getDefaultDishes(),
     db.user.findMany({
       where: { role: { not: "yono" } },
@@ -23,6 +29,11 @@ export default async function YonoHomePage() {
       orderBy: { name: "asc" },
     }),
   ]);
+
+  const { settings, menus } = day;
+  // ?m=new opens an empty form to add another warung for today
+  const menu = m === "new" ? null : day.menu;
+  const locked = menu ? day.locked : false;
 
   if (menu && !menu.reminderSentAt) {
     import("@/lib/reminder-service").then(({ checkAndSendReminders }) => {
@@ -38,7 +49,8 @@ export default async function YonoHomePage() {
 
   const tally = menu ? buildTally(menu.dish, nonYonoResponses) : null;
 
-  const respondedUserIds = new Set(nonYonoResponses.map((r) => r.userId));
+  // Someone who ordered at another warung today is not pending here
+  const respondedUserIds = new Set(menus.flatMap((x) => x.responses.map((r) => r.userId)));
   const pendingUsers = eaters.filter((e) => !respondedUserIds.has(e.id));
   const pendingMembers = pendingUsers.map((e) => e.name);
 
@@ -90,14 +102,21 @@ export default async function YonoHomePage() {
       title={`${t.kitchen} · ${formatDisplayDate(dateKey)}`}
       nav={<AppNav role={user.role} />}
     >
+      <WarungTabs
+        menus={menus}
+        activeId={menu?.id ?? null}
+        hrefFor={(menuId) => `/yono?m=${menuId}`}
+        addHref={menus.length > 0 ? "/yono?m=new" : undefined}
+      />
       <YonoSlideDashboard
-        key={dateKey}
+        key={`${dateKey}-${menu?.id ?? "new"}`}
         dateKey={dateKey}
         dateDisplay={formatDisplayDate(dateKey)}
         menu={
           menu
             ? {
                 id: menu.id,
+                vendor: menu.vendor,
                 dish: menu.dish,
                 subDishes: menu.subDishes,
                 addOns: menu.addOns,

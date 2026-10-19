@@ -38,6 +38,8 @@ model User {
 model Menu {
   id             String     @id @default(cuid())
   date           DateTime
+  // "" = belum diberi nama warung; satu hari bisa punya beberapa warung
+  vendor         String     @default("")
   dish           String
   subDishes      String?
   addOns         String?
@@ -47,7 +49,7 @@ model Menu {
   createdAt      DateTime   @default(now())
   responses      Response[]
 
-  @@unique([date])
+  @@unique([date, vendor])
 }
 
 model Response {

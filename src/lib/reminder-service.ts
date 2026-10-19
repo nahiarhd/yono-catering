@@ -24,14 +24,17 @@ export async function checkAndSendReminders(options?: {
   const settings = await getSettings();
   const dateKey = todayKey();
 
-  const menu = await db.menu.findUnique({
+  // The first warung posted carries the day's reminder state and cutoff
+  const menus = await db.menu.findMany({
     where: { date: parseDateKey(dateKey) },
+    orderBy: { createdAt: "asc" },
     include: {
       responses: {
         select: { userId: true },
       },
     },
   });
+  const menu = menus[0];
 
   const appUrl = getAppUrl();
 
@@ -86,7 +89,7 @@ export async function checkAndSendReminders(options?: {
     return { triggered: false, reason: "Pengingat hari ini sedang/sudah dikirim." };
   }
 
-  const respondedUserIds = new Set(menu.responses.map((r) => r.userId));
+  const respondedUserIds = new Set(menus.flatMap((m) => m.responses.map((r) => r.userId)));
   const pendingMembers = await db.user.findMany({
     where: {
       role: { not: "yono" },
@@ -118,7 +121,7 @@ export async function checkAndSendReminders(options?: {
       withTelegram.map((m) => {
         const text = formatReminderMessage({
           name: m.name,
-          dish: menu.dish,
+          dish: menus.map((m) => m.dish).join(" / "),
           cutoff,
           appUrl,
         });

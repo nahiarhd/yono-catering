@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { canOrder } from "@/lib/auth";
-import { effectiveCutoff } from "@/lib/cutoff";
+import { effectiveCutoff, isResponsesLocked } from "@/lib/cutoff";
 import { todayKey } from "@/lib/dates";
 import { id } from "@/lib/id";
-import { getMenuDay } from "@/lib/menu-data";
+import { getMenuDay, saveResponse } from "@/lib/menu-data";
 import { broadcastRealtime } from "@/lib/realtime";
 import { callTelegram, escapeHtml, sendTelegramMessage } from "@/lib/telegram";
 import {
@@ -13,6 +13,7 @@ import {
   orderSelection,
   renderOrderScreen,
   renderSavedScreen,
+  renderWarungScreen,
   type InlineKeyboard,
 } from "@/lib/telegram-order";
 
@@ -55,22 +56,25 @@ async function handleOrderCallback(cq: CallbackQuery) {
   if (!canOrder(user)) return alert(id.errors.cannotOrder);
 
   if (state.date < todayKey()) return alert("Menu ini sudah lewat.");
-  const { menu, locked, settings } = await getMenuDay(state.date);
-  if (!menu) return alert(id.errors.noMenu);
-  if (locked) return alert(id.errors.locked);
+  const { menus, settings } = await getMenuDay(state.date);
+  if (menus.length === 0) return alert(id.errors.noMenu);
+  if (state.menu === undefined && menus.length > 1) {
+    const at = menus.find((m) => m.responses.some((r) => r.userId === user.id));
+    const response = at?.responses.find((r) => r.userId === user.id);
+    return show(renderWarungScreen(menus, state, at && response ? { menu: at, response } : null));
+  }
+  const menu = menus[state.menu ?? 0];
+  if (!menu) return alert("Tombol ini sudah tidak berlaku.");
+  if (isResponsesLocked(state.date, settings.standingCutoff, menu.cutoffOverride)) return alert(id.errors.locked);
   const current = menu.responses.find((r) => r.userId === user.id) ?? null;
 
   if (!save) return show(renderOrderScreen(menu, state, current));
 
-  // shortcut: indexes are read against the menu at save time; if Yono edits the menu mid-flow the pick can shift. Upgrade by putting a menu version in callback_data if that happens.
+  // shortcut: warung/dish indexes are read against today's menus at save time; if Yono edits the menu mid-flow the pick can shift. Upgrade by putting a menu version in callback_data if that happens.
   const picked = orderSelection(menu, state);
   if (!picked) return show(renderOrderScreen(menu, { ...state, wants: undefined }, current));
 
-  await db.response.upsert({
-    where: { menuId_userId: { menuId: menu.id, userId: user.id } },
-    create: { menuId: menu.id, userId: user.id, ...picked, note: null },
-    update: picked,
-  });
+  await saveResponse(menu, user.id, picked);
   revalidatePath("/home");
   broadcastRealtime("revalidate");
 

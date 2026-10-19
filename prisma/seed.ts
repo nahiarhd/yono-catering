@@ -66,7 +66,7 @@ async function main() {
   // Seed menu hari ini dengan status semua sudah ngelist
   const todayDate = parseDateKey(todayKey());
   const menu = await db.menu.upsert({
-    where: { date: todayDate },
+    where: { date_vendor: { date: todayDate, vendor: "" } },
     create: {
       date: todayDate,
       dish: "Ayam Bakar Madu + Lalapan & Sambal",

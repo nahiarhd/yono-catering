@@ -5,6 +5,7 @@ import {
   orderEntryKeyboard,
   orderSelection,
   renderOrderScreen,
+  renderWarungScreen,
   startOrder,
   type OrderState,
 } from "../telegram-order";
@@ -13,7 +14,7 @@ const menu = { dish: "Nasi Ayam, Nasi Ikan", subDishes: "Goreng, Bakar", addOns:
 const date = "2026-10-14";
 
 function testEncodeRoundTripAndSize() {
-  const s: OrderState = { date, wants: true, dish: 1, variant: 0, addOnMask: 5, addOnsDone: true };
+  const s: OrderState = { date, menu: 3, wants: true, dish: 1, variant: 0, addOnMask: 5, addOnsDone: true };
   const data = encodeOrder(s, true);
   assert.ok(Buffer.byteLength(data) <= 64, "callback_data must fit Telegram's 64 bytes");
   assert.deepStrictEqual(decodeOrder(data), { state: s, save: true });
@@ -25,12 +26,14 @@ function testEncodeRoundTripAndSize() {
 
 function testDecodeRejectsForgedData() {
   assert.strictEqual(decodeOrder(""), null);
-  assert.strictEqual(decodeOrder("x:2026-10-14::::0:0"), null);
-  assert.strictEqual(decodeOrder("o:not-a-date::::0:0"), null);
-  assert.strictEqual(decodeOrder("o:2026-10-14:2:::0:0"), null);
-  assert.strictEqual(decodeOrder("o:2026-10-14::::abc:0"), null);
-  assert.strictEqual(decodeOrder("o:2026-10-14::::0:0:x"), null);
-  assert.strictEqual(decodeOrder("o:2026-10-14::::0:0:s:extra"), null);
+  assert.strictEqual(decodeOrder("x:2026-10-14:::::0:0"), null);
+  assert.strictEqual(decodeOrder("m:not-a-date:::::0:0"), null);
+  assert.strictEqual(decodeOrder("m:2026-10-14::2:::0:0"), null);
+  assert.strictEqual(decodeOrder("m:2026-10-14:::::abc:0"), null);
+  assert.strictEqual(decodeOrder("m:2026-10-14:::::0:0:x"), null);
+  assert.strictEqual(decodeOrder("m:2026-10-14:::::0:0:s:extra"), null);
+  // Buttons sent before multi-warung must not be read in the new layout
+  assert.strictEqual(decodeOrder("o:2026-10-14:1:0::0:1:s"), null);
 }
 
 function testFlowWalksEveryStep() {
@@ -88,6 +91,15 @@ function testShowsCurrentOrder() {
   assert.match(text, /Pesananmu sekarang: <b>Nasi Ayam \(Goreng\)<\/b>/);
 }
 
+function testWarungScreenPicksMenuIndex() {
+  const menus = [{ vendor: "Ayam Bakar Manis", ...menu }, { vendor: "", dish: "Ayam Bakar Asin", subDishes: null, addOns: null }];
+  const screen = renderWarungScreen(menus, startOrder(date));
+  assert.match(screen.text, /2 warung/);
+  const buttons = screen.keyboard.flat();
+  assert.deepStrictEqual(buttons.map((b) => b.text), ["Ayam Bakar Manis", "Ayam Bakar Asin"]);
+  assert.strictEqual(decodeOrder(buttons[1].callback_data!)!.state.menu, 1);
+}
+
 function testEntryKeyboardSkipsNonHttpsUrl() {
   assert.strictEqual(orderEntryKeyboard(date, "http://localhost:3000")[0].length, 1);
   assert.strictEqual(orderEntryKeyboard(date, "https://katering.coofis.id")[0][1].url, "https://katering.coofis.id/home");
@@ -100,5 +112,6 @@ testDeclineSkipsChoices();
 testSingleDishNoExtras();
 testOutOfRangeIndexAsksAgain();
 testShowsCurrentOrder();
+testWarungScreenPicksMenuIndex();
 testEntryKeyboardSkipsNonHttpsUrl();
 console.log("telegram-order tests passed");

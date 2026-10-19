@@ -5,6 +5,8 @@ import { escapeHtml } from "./telegram";
 // The whole order-in-progress rides in callback_data (Telegram caps it at 64 bytes), so no session table.
 export type OrderState = {
   date: string;
+  /** Index of the day's warung, by posting order; unset until picked when there are several. */
+  menu?: number;
   wants?: boolean;
   dish?: number;
   variant?: number;
@@ -15,14 +17,16 @@ export type OrderState = {
 export type InlineButton = { text: string; callback_data?: string; url?: string };
 export type InlineKeyboard = InlineButton[][];
 
-type OrderMenu = { dish: string; subDishes: string | null; addOns: string | null };
+type OrderMenu = { vendor?: string; dish: string; subDishes: string | null; addOns: string | null };
 type CurrentResponse = { wants: boolean; swapDish: string | null; addOns: string | null };
 
 export function encodeOrder(s: OrderState, save = false): string {
   const w = s.wants === undefined ? "" : s.wants ? "1" : "0";
+  // Tag "m" (was "o" before multi-warung) so buttons from older messages are rejected, not misread
   return [
-    "o",
+    "m",
     s.date,
+    s.menu ?? "",
     w,
     s.dish ?? "",
     s.variant ?? "",
@@ -33,14 +37,15 @@ export function encodeOrder(s: OrderState, save = false): string {
 }
 
 export function decodeOrder(data: string): { state: OrderState; save: boolean } | null {
-  const [tag, date, w, dish, variant, mask, done, save, ...rest] = data.split(":");
-  if (tag !== "o" || rest.length > 0 || !isValidDateKey(date ?? "")) return null;
+  const [tag, date, menu, w, dish, variant, mask, done, save, ...rest] = data.split(":");
+  if (tag !== "m" || rest.length > 0 || !isValidDateKey(date ?? "")) return null;
   const index = (v: string | undefined) => (v && /^\d{1,2}$/.test(v) ? Number(v) : undefined);
   if (!["", "0", "1"].includes(w ?? "x") || !/^\d{1,9}$/.test(mask ?? "")) return null;
   if ((save ?? "s") !== "s") return null;
   return {
     state: {
       date,
+      menu: index(menu),
       wants: w === "" ? undefined : w === "1",
       dish: index(dish),
       variant: index(variant),
@@ -92,13 +97,30 @@ export function orderEntryKeyboard(date: string, appUrl: string): InlineKeyboard
   return [row];
 }
 
+export function renderWarungScreen(
+  menus: OrderMenu[],
+  s: OrderState,
+  current?: { menu: OrderMenu; response: CurrentResponse } | null,
+): { text: string; keyboard: InlineKeyboard } {
+  const now = current
+    ? `\nPesananmu sekarang: <b>${escapeHtml(describeOrder(current.menu, current.response))}</b>`
+    : "";
+  return {
+    text: `🍽️ Hari ini ada ${menus.length} warung.${now}\n\nMau pesan dari warung mana?`,
+    keyboard: menus.map((m, i) => [
+      { text: `${m.vendor || m.dish}`, callback_data: encodeOrder({ ...s, menu: i }) },
+    ]),
+  };
+}
+
 export function renderOrderScreen(
   menu: OrderMenu,
   s: OrderState,
   current?: CurrentResponse | null,
 ): { text: string; keyboard: InlineKeyboard } {
   const { dishes, variants, addOns } = options(menu);
-  const head = `🍽️ Menu hari ini: <b>${escapeHtml(menu.dish)}</b>`;
+  const at = menu.vendor && menu.vendor !== menu.dish ? ` (${escapeHtml(menu.vendor)})` : "";
+  const head = `🍽️ Menu hari ini${at}: <b>${escapeHtml(menu.dish)}</b>`;
   const go = (next: Partial<OrderState>, save = false) => encodeOrder({ ...s, ...next }, save);
   const restart: InlineButton[] = [{ text: "↩️ Ulangi", callback_data: encodeOrder(startOrder(s.date)) }];
 

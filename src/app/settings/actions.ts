@@ -175,26 +175,24 @@ export async function updateDefaultDishAction(
   // Synchronize today's posted menu if it matches the dish/warung being updated
   const today = todayKey();
   const todayDate = parseDateKey(today);
-  const currentMenu = await db.menu.findUnique({ where: { date: todayDate } });
-  if (currentMenu) {
-    const currentDishNorm = normalizeDishKey(currentMenu.dish);
-    const origWarung = dishes[targetIndex].warung;
-    const matchesOrig = currentDishNorm === origKey;
-    const matchesNew = currentDishNorm === newKey;
-    const matchesWarung = warung && currentDishNorm === normalizeDishKey(warung);
-    const matchesOrigWarung = origWarung && currentDishNorm === normalizeDishKey(origWarung);
-
-    if (matchesOrig || matchesNew || matchesWarung || matchesOrigWarung) {
-      await db.menu.update({
-        where: { date: todayDate },
-        data: {
-          dish,
-          subDishes: subDishes.length > 0 ? formatSubDishes(subDishes) : null,
-          addOns: addOns.length > 0 ? formatSubDishes(addOns) : null,
-          note,
-        },
-      });
-    }
+  const todayMenus = await db.menu.findMany({ where: { date: todayDate } });
+  const origWarung = dishes[targetIndex].warung;
+  const matchKeys = [origKey, newKey, warung, origWarung]
+    .filter((k): k is string => Boolean(k))
+    .map(normalizeDishKey);
+  const matchingIds = todayMenus
+    .filter((m) => matchKeys.includes(normalizeDishKey(m.dish)))
+    .map((m) => m.id);
+  if (matchingIds.length > 0) {
+    await db.menu.updateMany({
+      where: { id: { in: matchingIds } },
+      data: {
+        dish,
+        subDishes: subDishes.length > 0 ? formatSubDishes(subDishes) : null,
+        addOns: addOns.length > 0 ? formatSubDishes(addOns) : null,
+        note,
+      },
+    });
   }
 
   revalidatePath("/settings");

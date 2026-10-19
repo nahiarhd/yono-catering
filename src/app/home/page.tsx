@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireUser, canOrder } from "@/lib/auth";
 import { todayKey, formatDisplayDate } from "@/lib/dates";
-import { effectiveCutoff } from "@/lib/cutoff";
+import { effectiveCutoff, isResponsesLocked } from "@/lib/cutoff";
 import { getMenuDay } from "@/lib/menu-data";
 import { parseSubDishes, parseDefaultDishes } from "@/lib/dishes";
 import {
@@ -17,11 +17,12 @@ import { AppNav } from "@/components/nav";
 import { DatePicker } from "@/components/date-picker";
 import { ResponseForm } from "@/components/response-form";
 import { MemberOrdersSummary } from "@/components/member-orders-summary";
+import { WarungTabs } from "@/components/warung-tabs";
 
 export default async function MemberHomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; m?: string }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
@@ -30,14 +31,21 @@ export default async function MemberHomePage({
     redirect("/home");
   }
   const dateKey = params.date ?? today;
-  const [{ settings, menu, locked }, eaters] = await Promise.all([
-    getMenuDay(dateKey),
+  const [{ settings, menus, ...day }, eaters] = await Promise.all([
+    getMenuDay(dateKey, params.m),
     db.user.findMany({
       where: { role: { not: "yono" } },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
   ]);
+
+  const pickedMenu = menus.find((x) => x.responses.some((r) => r.userId === user.id)) ?? null;
+  // Without ?m, open the warung this member already ordered from
+  const menu = params.m ? day.menu : (pickedMenu ?? day.menu);
+  const locked = menu
+    ? isResponsesLocked(dateKey, settings.standingCutoff, menu.cutoffOverride)
+    : false;
 
   if (dateKey === today && menu && !menu.reminderSentAt) {
     import("@/lib/reminder-service").then(({ checkAndSendReminders }) => {
@@ -46,6 +54,7 @@ export default async function MemberHomePage({
   }
 
   const myResponse = menu?.responses.find((r) => r.userId === user.id);
+  const orderedElsewhere = !myResponse && pickedMenu ? pickedMenu.vendor || pickedMenu.dish : null;
   const dishPreference =
     menu && canOrder(user)
       ? await getPreferenceForDish(user.id, menu.dish)
@@ -63,14 +72,14 @@ export default async function MemberHomePage({
           (p.warung && p.warung.trim().toLowerCase() === menu.dish.trim().toLowerCase())
       )
     : null;
-  const warungName = matchedPreset?.warung ?? null;
+  const warungName = menu?.vendor && menu.vendor !== menu.dish ? menu.vendor : (matchedPreset?.warung ?? null);
   const t = id.home;
 
   const nonYonoResponses = menu
     ? menu.responses.filter((r) => r.user.role !== "yono")
     : [];
   const tally = menu ? buildTally(menu.dish, nonYonoResponses) : null;
-  const respondedUserIds = new Set(nonYonoResponses.map((r) => r.userId));
+  const respondedUserIds = new Set(menus.flatMap((x) => x.responses.map((r) => r.userId)));
   const pendingMembers = eaters
     .filter((e) => !respondedUserIds.has(e.id))
     .map((e) => e.name);
@@ -94,6 +103,12 @@ export default async function MemberHomePage({
   return (
     <PageShell title={formatDisplayDate(dateKey)} nav={<AppNav role={user.role} />}>
       <DatePicker key={dateKey} value={dateKey} todayKey={todayKey()} basePath="/home" />
+      <WarungTabs
+        menus={menus}
+        activeId={menu?.id ?? null}
+        pickedId={pickedMenu?.id}
+        hrefFor={(menuId) => `/home?date=${dateKey}&m=${menuId}`}
+      />
 
       {menu ? (
         <>
@@ -163,6 +178,11 @@ export default async function MemberHomePage({
               {t.respondBefore} {effectiveCutoff(settings.standingCutoff, menu.cutoffOverride)}
               {locked ? ` · ${t.locked}` : ""}
             </p>
+            {orderedElsewhere && (
+              <p className="mt-3 border-2 border-black bg-white p-2.5 text-sm font-bold">
+                Kamu sudah pesan di {orderedElsewhere}. Kalau simpan di sini, pesanan di sana dibatalkan.
+              </p>
+            )}
             {myResponse && (
               <div className="neo-response-status mt-3">
                 <p className="neo-response-status-label">{t.yourStatus}</p>
@@ -179,9 +199,11 @@ export default async function MemberHomePage({
 
           {canOrder(user) && (
             <ResponseForm
+              key={menu.id}
               action={submitResponseAction}
               locked={locked}
               dateKey={dateKey}
+              menuId={menu.id}
               dish={menu.dish}
               dishOptions={dishOptions}
               subDishes={subDishes}
