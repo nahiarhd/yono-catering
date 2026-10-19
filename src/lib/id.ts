@@ -4,7 +4,7 @@ export const id = {
     name: "Yono Catering",
     tagline: "Lek ate mangan, list-en rek!",
     description:
-      "Buat yang belum tahu, ini aplikasi buat bantu Pak Yono ngumpulin pesenan makan siang dari kita-kita. Jadi Pak Yono bisa masak sesuai jumlah yang dibutuhkan aja, gak kebanyakan atau kekurangan. Kita juga bisa kasih catatan kalau mau, misal pedas atau gak pakai cabe. Pokoknya biar makan siangnya makin enak dan sesuai selera kita semua deh!",
+      "Buat yang belum tahu, ini aplikasi buat bantu Pak Yono ngumpulin pesenan makan malam dari kita-kita. Jadi Pak Yono bisa masak sesuai jumlah yang dibutuhkan aja, gak kebanyakan atau kekurangan. Kita juga bisa kasih catatan kalau mau, misal pedas atau gak pakai cabe. Pokoknya biar makan siangnya makin enak dan sesuai selera kita semua deh!",
   },
   loading: {
     home: "Lagi ambil menu hari ini…",

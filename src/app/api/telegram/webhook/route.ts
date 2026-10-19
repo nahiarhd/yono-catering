@@ -116,7 +116,7 @@ export async function POST(request: Request) {
       "Chat ID Telegram kamu adalah:",
       `<code>${chatId}</code>`,
       "",
-      "Silakan salin ID di atas dan berikan ke Admin katering agar akunmu terhubung dengan notifikasi menu harian dan pengingat makan siang.",
+      "Silakan salin ID di atas dan berikan ke Admin katering agar akunmu terhubung dengan notifikasi menu harian dan pengingat makan malam.",
     ].join("\n");
 
     await sendTelegramMessage(chatId, replyText);

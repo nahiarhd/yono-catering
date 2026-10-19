@@ -57,7 +57,7 @@ export function formatMenuBroadcastMessage({
 
   lines.push(`⏰ Batas Waktu: <b>${safeCutoff} WIB</b>`);
   lines.push("");
-  lines.push("Yuk langsung pilih makan siang kamu sebelum batas waktu:");
+  lines.push("Yuk langsung pilih makan malam kamu sebelum batas waktu:");
   lines.push(`👉 <a href="${appUrl}/home">${appUrl}/home</a>`);
 
   return lines.join("\n");

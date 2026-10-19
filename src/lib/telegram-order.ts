@@ -105,7 +105,7 @@ export function renderOrderScreen(
   if (s.wants === undefined) {
     const now = current ? `\nPesananmu sekarang: <b>${escapeHtml(describeOrder(menu, current))}</b>` : "";
     return {
-      text: `${head}${now}\n\nMau pesan makan siang?`,
+      text: `${head}${now}\n\nMau pesan makan malam?`,
       keyboard: [[
         { text: "✅ Mau", callback_data: go({ wants: true }) },
         { text: "❌ Tidak", callback_data: go({ wants: false }) },
