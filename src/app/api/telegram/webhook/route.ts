@@ -149,6 +149,9 @@ export async function POST(request: Request) {
       `<code>${chatId}</code>`,
       "",
       "Silakan salin ID di atas dan berikan ke Admin katering agar akunmu terhubung dengan notifikasi menu harian dan pengingat makan malam.",
+      "Oh iya untuk PIN di web:",
+      `<code> <b>1234</b> </code>`,
+      "Bisa di reset kok hehe di pengaturan ya!!"
     ].join("\n");
 
     await sendTelegramMessage(chatId, replyText);
