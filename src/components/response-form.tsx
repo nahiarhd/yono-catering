@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { parseSubDishes } from "@/lib/dishes";
+import { parseSubDishes, splitSelection, type DishOption } from "@/lib/dishes";
 import { id } from "@/lib/id";
 import { Button, Card, Input } from "./ui";
 
@@ -21,10 +21,7 @@ export function ResponseForm({
   locked,
   dateKey,
   menuId,
-  dish,
-  dishOptions = [],
-  subDishes = [],
-  addOns = [],
+  options,
   initial,
   prefilledFromPreference,
 }: {
@@ -32,10 +29,7 @@ export function ResponseForm({
   locked: boolean;
   dateKey: string;
   menuId: string;
-  dish: string;
-  dishOptions?: string[];
-  subDishes?: string[];
-  addOns?: string[];
+  options: DishOption[];
   initial?: Initial;
   prefilledFromPreference?: boolean;
 }) {
@@ -43,34 +37,17 @@ export function ResponseForm({
   const [state, formAction, pending] = useActionState(action, {});
   const t = id.response;
 
-  const parsedDishes = dishOptions.length > 0 ? dishOptions : parseSubDishes(dish);
-  const isMultiDish = parsedDishes.length > 1;
+  const parsedDishes = options.map((o) => o.name);
+  const dish = parsedDishes.join(", ");
+  const isMultiDish = options.length > 1;
 
   const initialParts = (() => {
-    const raw = initial?.swapDish?.trim() ?? "";
-    if (!raw) {
-      return {
-        dish: parsedDishes.length === 1 ? parsedDishes[0] : "",
-        variant: subDishes.length === 1 ? subDishes[0] : "",
-      };
-    }
-    const match = raw.match(/^(.+?)\s*\((.+?)\)$/);
-    if (match) {
-      const d = match[1].trim();
-      const v = match[2].trim();
-      if (parsedDishes.some((item) => item.toLowerCase() === d.toLowerCase())) {
-        return { dish: d, variant: v };
-      }
-    }
-    const matchingDish = parsedDishes.find((item) => item.toLowerCase() === raw.toLowerCase());
-    if (matchingDish) {
-      return { dish: matchingDish, variant: subDishes.length === 1 ? subDishes[0] : "" };
-    }
-    const matchingVariant = subDishes.find((item) => item.toLowerCase() === raw.toLowerCase());
-    if (matchingVariant) {
-      return { dish: parsedDishes.length === 1 ? parsedDishes[0] : "", variant: matchingVariant };
-    }
-    return { dish: raw, variant: "" };
+    const parts = splitSelection(options, initial?.swapDish);
+    const only = options.length === 1 ? options[0] : undefined;
+    return {
+      dish: parts.dish || (only?.name ?? ""),
+      variant: parts.variant || (only?.variants.length === 1 ? only.variants[0] : ""),
+    };
   })();
 
   const [wants, setWants] = useState(initial?.wants !== false);
@@ -91,6 +68,22 @@ export function ResponseForm({
   }
 
   const [note, setNote] = useState(initial?.note ?? "");
+
+  const activeOption = isMultiDish
+    ? options.find((o) => o.name.toLowerCase() === selectedDish.toLowerCase())
+    : options[0];
+  const subDishes = activeOption?.variants ?? [];
+  const addOns = activeOption?.addOns ?? [];
+
+  function pickDish(name: string) {
+    const next = options.find((o) => o.name === name);
+    setSelectedDish(name);
+    // Variants and add-ons belong to one dish, so drop picks the new dish does not offer
+    setSelectedVariant((v) =>
+      next?.variants.includes(v) ? v : next?.variants.length === 1 ? next.variants[0] : ""
+    );
+    setSelectedAddOns((prev) => prev.filter((a) => next?.addOns.includes(a)));
+  }
 
   useEffect(() => {
     if (state.ok) router.refresh();
@@ -208,7 +201,7 @@ export function ResponseForm({
                   <button
                     key={opt}
                     type="button"
-                    onClick={() => setSelectedDish(opt)}
+                    onClick={() => pickDish(opt)}
                     className={`border-2 border-black font-black text-xs px-3.5 py-2.5 min-h-[44px] transition-all cursor-pointer ${
                       selected
                         ? "bg-[var(--primary)] text-black shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"

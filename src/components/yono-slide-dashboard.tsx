@@ -3,8 +3,14 @@
 import { useState, useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { id } from "@/lib/id";
-import type { DefaultDish } from "@/lib/dishes";
-import { parseSubDishes, computeSelectionDish } from "@/lib/dishes";
+import {
+  menuDishOptions,
+  presetDishOptions,
+  type DefaultDish,
+  type DishOption,
+} from "@/lib/dishes";
+import { DishOptionsList } from "@/components/dish-options-list";
+import { DishOptionsEditor } from "@/components/dish-options-editor";
 import { Card, Button, Input, Label } from "@/components/ui";
 import { TelegramPingButton } from "@/components/telegram-ping-button";
 import {
@@ -28,6 +34,7 @@ export interface YonoSlideDashboardProps {
     dish: string;
     subDishes?: string | null;
     addOns?: string | null;
+    dishOptions?: unknown;
     note?: string | null;
     cutoffOverride?: string | null;
   } | null;
@@ -70,9 +77,8 @@ export function YonoSlideDashboard({
 
   // Form state for Menu Form
   const [vendor, setVendor] = useState(menu?.vendor ?? "");
-  const [dish, setDish] = useState(menu?.dish ?? "");
-  const [subDishes, setSubDishes] = useState(menu?.subDishes ?? "");
-  const [addOns, setAddOns] = useState(menu?.addOns ?? "");
+  const [options, setOptions] = useState<DishOption[]>(menu ? menuDishOptions(menu) : []);
+  const dish = options.map((o) => o.name.trim()).filter(Boolean).join(", ");
 
   // Server action for posting menu
   const [menuFormState, formAction, menuPending] = useActionState(
@@ -95,27 +101,13 @@ export function YonoSlideDashboard({
 
   function handleSelectPreset(preset: DefaultDish) {
     setVendor(preset.warung ?? "");
-    setDish(preset.name);
-    setSubDishes(
-      preset.subDishes && preset.subDishes.length > 0
-        ? preset.subDishes.join(", ")
-        : ""
-    );
-    setAddOns(
-      preset.addOns && preset.addOns.length > 0
-        ? preset.addOns.join(", ")
-        : ""
-    );
+    setOptions(presetDishOptions(preset));
   }
 
   const totalAnswered = eatingOrders.length + notEatingOrders.length;
   const isAllAnswered = eaters.length > 0 && pendingUsers.length === 0;
-  const currentSubDishesList = parseSubDishes(subDishes);
-  const currentAddOnsList = parseSubDishes(addOns);
-  const currentDishList = parseSubDishes(dish);
-  const parsedActiveSubDishes = menu ? parseSubDishes(menu.subDishes) : [];
-  const parsedActiveAddOns = menu ? parseSubDishes(menu.addOns) : [];
-  const parsedActiveDishes = menu ? parseSubDishes(menu.dish) : [];
+  const activeOptions = menu ? menuDishOptions(menu) : [];
+  const parsedActiveDishes = activeOptions.map((o) => o.name);
 
   return (
     <div className="flex flex-col gap-4">
@@ -146,13 +138,20 @@ export function YonoSlideDashboard({
             <input type="hidden" name="dateKey" value={dateKey} />
             <input type="hidden" name="menuId" value={menu?.id ?? ""} />
             <input type="hidden" name="vendor" value={vendor} />
+            <input
+              type="hidden"
+              name="dishOptions"
+              value={JSON.stringify(options.filter((o) => o.name.trim()))}
+            />
 
             {/* Quick Menu Preset Cards from Admin */}
             {parsedPresets.length > 0 ? (
               <div className="flex flex-col gap-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {parsedPresets.map((preset) => {
-                    const isSelected = dish.trim().toLowerCase() === preset.name.trim().toLowerCase();
+                    const isSelected =
+                      vendor.trim().toLowerCase() === (preset.warung ?? "").trim().toLowerCase() &&
+                      dish.toLowerCase() === preset.name.trim().toLowerCase();
                     const warungName = preset.warung || preset.name;
 
                     return (
@@ -220,64 +219,7 @@ export function YonoSlideDashboard({
                   )}
                 </div>
 
-                <div>
-                  {currentDishList.length > 1 ? (
-                    <div>
-                      <p className="text-xs font-bold uppercase text-emerald-900/80 mb-1">
-                        Pilihan Menu Masakan ({currentDishList.length} menu):
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {currentDishList.map((d) => (
-                          <span
-                            key={d}
-                            className="text-xs font-black bg-white border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]"
-                          >
-                            🍴 {d}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-xs font-bold uppercase text-emerald-900/80">Menu Masakan:</p>
-                      <p className="text-lg sm:text-xl font-black text-black">
-                        {dish}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {currentSubDishesList.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                    <span className="text-xs font-bold text-emerald-950 mr-1">
-                      Pilihan varian:
-                    </span>
-                    {currentSubDishesList.map((sub) => (
-                      <span
-                        key={sub}
-                        className="text-xs font-bold bg-white border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]"
-                      >
-                        ✓ {sub}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {currentAddOnsList.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                    <span className="text-xs font-bold text-emerald-950 mr-1">
-                      Pilihan add-on:
-                    </span>
-                    {currentAddOnsList.map((addon) => (
-                      <span
-                        key={addon}
-                        className="text-xs font-bold bg-white border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]"
-                      >
-                        + {addon}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <DishOptionsList options={options.filter((o) => o.name.trim())} />
               </div>
             ) : (
               <div className="border-2 border-dashed border-black/50 bg-stone-100/80 p-4 text-center text-sm font-bold text-stone-600">
@@ -323,7 +265,7 @@ export function YonoSlideDashboard({
               className="mt-1 border-2 border-dashed border-black/40 bg-white/70 p-3 rounded text-left"
             >
               <summary className="text-xs font-bold text-stone-600 cursor-pointer select-none hover:text-black">
-                ⚙️ Opsi Manual: Ingin tulis menu sendiri di luar daftar template?
+                ⚙️ Ubah menu atau tulis sendiri di luar daftar
               </summary>
               <div className="mt-3 flex flex-col gap-3 pt-3 border-t border-stone-200">
                 <div>
@@ -339,49 +281,8 @@ export function YonoSlideDashboard({
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="yono-dish-input" className="text-xs font-bold uppercase text-black">
-                    Nama Menu Masakan:
-                  </Label>
-                  <Input
-                    id="yono-dish-input"
-                    name="dish"
-                    required
-                    placeholder="contoh: Sop Buntut, Ayam Bakar Lengkuas"
-                    value={dish}
-                    onChange={(e) => setDish(e.target.value)}
-                    className="text-sm font-bold min-h-[44px] border-2 border-black bg-white"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="yono-subdishes-input" className="text-xs font-bold uppercase text-black">
-                    Pilihan Varian / Sub-menu (opsional, pisahkan koma):
-                  </Label>
-                  <Input
-                    id="yono-subdishes-input"
-                    name="subDishes"
-                    placeholder="contoh: Bakmi Goreng, Bakmi Godhog, Nasi Goreng"
-                    value={subDishes}
-                    onChange={(e) => setSubDishes(e.target.value)}
-                    className="text-sm border-2 border-black bg-white"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="yono-addons-input" className="text-xs font-bold uppercase text-black">
-                    Pilihan Add-on (opsional, pisahkan koma):
-                  </Label>
-                  <Input
-                    id="yono-addons-input"
-                    name="addOns"
-                    placeholder="contoh: Telor Ceplok, Telor Dadar, Kerupuk"
-                    value={addOns}
-                    onChange={(e) => setAddOns(e.target.value)}
-                    className="text-sm border-2 border-black bg-white"
-                  />
-                  <input type="hidden" name="menuNote" value="" />
-                </div>
+                <DishOptionsEditor value={options} onChange={setOptions} />
+                <input type="hidden" name="menuNote" value="" />
               </div>
             </details>
           </form>
@@ -409,57 +310,12 @@ export function YonoSlideDashboard({
                   {tally?.total ?? 0} Porsi
                 </span>
               </div>
-              {parsedActiveDishes.length > 1 ? (
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-black">
-                    {menu.vendor || "Pilihan Menu Hari Ini"}
-                  </h2>
-                  <div className="mt-1.5 flex flex-wrap gap-1">
-                    {parsedActiveDishes.map((item) => (
-                      <span
-                        key={item}
-                        className="text-xs font-black bg-white border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]"
-                      >
-                        🍴 {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : (
+              {parsedActiveDishes.length > 1 && (
                 <h2 className="text-xl sm:text-2xl font-black text-black">
-                  {menu.dish}
+                  {menu.vendor || "Pilihan Menu Hari Ini"}
                 </h2>
               )}
-              {parsedActiveSubDishes.length > 0 && (
-                <div className="mt-2 flex flex-wrap items-center gap-1">
-                  <span className="text-[11px] font-bold text-[var(--text-muted)] mr-1">
-                    Varian:
-                  </span>
-                  {parsedActiveSubDishes.map((sub) => (
-                    <span
-                      key={sub}
-                      className="border border-black bg-amber-100 px-2 py-0.5 text-xs font-bold"
-                    >
-                      {sub}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {parsedActiveAddOns.length > 0 && (
-                <div className="mt-2 flex flex-wrap items-center gap-1">
-                  <span className="text-[11px] font-bold text-[var(--text-muted)] mr-1">
-                    Add-on:
-                  </span>
-                  {parsedActiveAddOns.map((addon) => (
-                    <span
-                      key={addon}
-                      className="border border-black bg-emerald-100 px-2 py-0.5 text-xs font-bold"
-                    >
-                      + {addon}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <DishOptionsList options={activeOptions} />
               <p className="mt-1 text-xs font-bold text-stone-600">
                 Batas Pesan Otomatis: {cutoffText} WIB {locked ? "· Terkunci untuk anggota" : "· Masih Buka"}
               </p>
@@ -659,9 +515,7 @@ export function YonoSlideDashboard({
           dateKey={dateKey}
           menuId={menu.id}
           menuDish={menu.dish}
-          dishOptions={parsedActiveDishes}
-          subDishes={parsedActiveSubDishes}
-          addOns={parsedActiveAddOns}
+          options={activeOptions}
           onClose={() => setSelectedPendingUser(null)}
           onSuccess={() => {
             setSelectedPendingUser(null);
@@ -732,9 +586,7 @@ function RecordResponseModal({
   dateKey,
   menuId,
   menuDish,
-  dishOptions,
-  subDishes,
-  addOns = [],
+  options,
   onClose,
   onSuccess,
 }: {
@@ -742,19 +594,32 @@ function RecordResponseModal({
   dateKey: string;
   menuId: string;
   menuDish: string;
-  dishOptions?: string[];
-  subDishes: string[];
-  addOns?: string[];
+  options: DishOption[];
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const parsedDishes = dishOptions && dishOptions.length > 0 ? dishOptions : parseSubDishes(menuDish);
+  const parsedDishes = options.map((o) => o.name);
   const isMultiDish = parsedDishes.length > 1;
+  const only = isMultiDish ? undefined : options[0];
 
   const [wants, setWants] = useState(true);
-  const [selectedDish, setSelectedDish] = useState(parsedDishes.length === 1 ? parsedDishes[0] : "");
-  const [selectedSubDish, setSelectedSubDish] = useState(subDishes.length === 1 ? subDishes[0] : "");
+  const [selectedDish, setSelectedDish] = useState(only?.name ?? "");
+  const [selectedSubDish, setSelectedSubDish] = useState(
+    only?.variants.length === 1 ? only.variants[0] : ""
+  );
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const activeOption = isMultiDish ? options.find((o) => o.name === selectedDish) : only;
+  const subDishes = activeOption?.variants ?? [];
+  const addOns = activeOption?.addOns ?? [];
+
+  function pickDish(name: string) {
+    const next = options.find((o) => o.name === name);
+    setSelectedDish(name);
+    setSelectedSubDish((v) =>
+      next?.variants.includes(v) ? v : next?.variants.length === 1 ? next.variants[0] : ""
+    );
+    setSelectedAddOns((prev) => prev.filter((a) => next?.addOns.includes(a)));
+  }
   const [note, setNote] = useState("");
   const t = id.yono;
 
@@ -763,14 +628,6 @@ function RecordResponseModal({
       prev.includes(addon) ? prev.filter((a) => a !== addon) : [...prev, addon]
     );
   }
-
-  const computedSubDish = (() => {
-    return computeSelectionDish({
-      isMultiDish,
-      selectedDish,
-      selectedVariant: selectedSubDish,
-    });
-  })();
 
   const isMissingDish = wants && isMultiDish && !selectedDish;
   const isMissingVariant = wants && subDishes.length > 0 && !selectedSubDish;
@@ -844,9 +701,6 @@ function RecordResponseModal({
             <input type="hidden" name="selectedVariant" value={selectedSubDish} />
           )}
           {wants && (
-            <input type="hidden" name="subDish" value={computedSubDish} />
-          )}
-          {wants && (
             <input type="hidden" name="addOns" value={selectedAddOns.join(", ")} />
           )}
 
@@ -899,7 +753,7 @@ function RecordResponseModal({
                     <button
                       key={dishName}
                       type="button"
-                      onClick={() => setSelectedDish(dishName)}
+                      onClick={() => pickDish(dishName)}
                       className={`border-2 border-black px-3.5 py-2 text-xs font-bold transition-all cursor-pointer min-h-[44px] ${
                         isSelected
                           ? "bg-[var(--primary)] shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"

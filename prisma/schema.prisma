@@ -27,6 +27,10 @@ model User {
   pinHash          String
   role             Role
   telegramChatId   String?
+  // Set when the last Telegram send/check to this chat failed (bot blocked or never started)
+  telegramFailedAt DateTime?
+  // false = away (cuti/luar kota): no reminders, not counted as pending
+  active           Boolean          @default(true)
   groupId          String?
   group            Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
   createdAt        DateTime         @default(now())
@@ -43,6 +47,8 @@ model Menu {
   dish           String
   subDishes      String?
   addOns         String?
+  // [{ name, variants, addOns }] per dish; null on menus posted before per-dish options
+  dishOptions    Json?
   note           String?
   cutoffOverride String?
   reminderSentAt DateTime?

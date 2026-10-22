@@ -4,6 +4,7 @@ import { id } from "@/lib/id";
 import { PageShell } from "@/components/ui";
 import { AppNav } from "@/components/nav";
 import { UsersTable } from "./users-table";
+import { telegramLinkUrl, telegramStatus } from "@/lib/telegram-status";
 
 export default async function UsersPage() {
   const user = await requireStrictAdmin();
@@ -19,6 +20,8 @@ export default async function UsersPage() {
         name: true,
         role: true,
         telegramChatId: true,
+        telegramFailedAt: true,
+        active: true,
         groupId: true,
         group: {
           select: {
@@ -57,6 +60,9 @@ export default async function UsersPage() {
     name: u.name,
     role: u.role,
     telegramChatId: u.telegramChatId,
+    telegramStatus: telegramStatus(u),
+    telegramLink: telegramLinkUrl(u.id),
+    active: u.active,
     groupId: u.groupId,
     groupName: u.group?.name ?? null,
     createdAt: u.createdAt.toISOString(),
@@ -72,7 +78,7 @@ export default async function UsersPage() {
     <PageShell
       title={id.users.title}
       nav={<AppNav role={user.role} />}
-      maxWidth="max-w-4xl"
+      maxWidth="max-w-6xl"
     >
       <div className="flex flex-col gap-2 -mt-2 mb-2">
         <p className="text-sm font-semibold text-[var(--text-muted)]">

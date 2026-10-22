@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireStrictAdmin, hashPin } from "@/lib/auth";
 import { broadcastRealtime } from "@/lib/realtime";
 import { id } from "@/lib/id";
+import { checkTelegramReachability } from "@/lib/telegram-status";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -237,3 +238,32 @@ export async function updateUserGroupAction(
   return { ok: true };
 }
 
+
+export async function setUserActiveAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireStrictAdmin();
+
+  const memberId = String(formData.get("memberId") ?? "").trim();
+  const active = String(formData.get("active") ?? "") === "yes";
+  const target = memberId ? await db.user.findUnique({ where: { id: memberId } }) : null;
+  if (!target) return { error: id.errors.memberNotFound };
+  if (target.role === "yono") return { error: id.errors.cannotChangeYonoRole };
+
+  await db.user.update({ where: { id: memberId }, data: { active } });
+
+  revalidatePath("/users");
+  revalidatePath("/home");
+  revalidatePath("/yono");
+  broadcastRealtime("revalidate");
+  return { ok: true };
+}
+
+export async function checkTelegramAction(): Promise<ActionState & { summary?: string }> {
+  await requireStrictAdmin();
+  const result = await checkTelegramReachability();
+  if ("error" in result) return { error: result.error };
+  revalidatePath("/users");
+  return { ok: true, summary: id.users.telegramCheckDone(result.ok, result.failed) };
+}

@@ -8,6 +8,7 @@ import {
   sendTelegramMessage,
 } from "@/lib/telegram";
 import { orderEntryKeyboard } from "@/lib/telegram-order";
+import { recordTelegramDelivery } from "@/lib/telegram-status";
 
 export interface ReminderResult {
   triggered: boolean;
@@ -93,6 +94,7 @@ export async function checkAndSendReminders(options?: {
   const pendingMembers = await db.user.findMany({
     where: {
       role: { not: "yono" },
+      active: true,
       id: { notIn: Array.from(respondedUserIds) },
     },
     select: { id: true, name: true, telegramChatId: true },
@@ -131,13 +133,19 @@ export async function checkAndSendReminders(options?: {
       })
     );
 
-    for (const r of results) {
+    const reached: string[] = [];
+    const unreachable: string[] = [];
+    results.forEach((r, i) => {
+      const chatId = withTelegram[i].telegramChatId!;
       if (r.status === "fulfilled" && r.value.ok) {
         sentCount++;
+        reached.push(chatId);
       } else {
         failedCount++;
+        if (r.status === "fulfilled" && r.value.unreachable) unreachable.push(chatId);
       }
-    }
+    });
+    await recordTelegramDelivery(reached, unreachable);
   }
 
   return {

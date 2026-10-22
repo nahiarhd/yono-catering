@@ -1,307 +1,354 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { id } from "@/lib/id";
-import { Card, Button, Select, Input } from "./ui";
+import { formatDisplayDate } from "@/lib/dates";
+import type { buildReport, ReportDay } from "@/lib/report";
+import { Card, Button, Input } from "./ui";
 
-export type ReportDay = {
-  id: string;
-  dateKey: string;
-  dateDisplay: string;
-  monthKey: string;
-  monthDisplay: string;
-  dish: string;
-  note: string | null;
-  totalPortions: number;
-  totalNotEating: number;
-  breakdown: Array<{ label: string; count: number }>;
-  eaters: Array<{
-    name: string;
-    dish: string;
-    addOns: string | null;
-    note: string | null;
-  }>;
-  nonEaters: string[];
-};
+type Report = ReturnType<typeof buildReport>;
+type Tab = "days" | "people";
 
-export function ReportView({ days }: { days: ReportDay[] }) {
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+const itemsText = (items: { label: string; count: number }[]) =>
+  items.map((i) => `${i.count}× ${i.label}`).join(", ");
 
-  // Extract distinct months for the filter dropdown
-  const months = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const d of days) {
-      if (!map.has(d.monthKey)) {
-        map.set(d.monthKey, d.monthDisplay);
-      }
-    }
-    return Array.from(map.entries()).map(([key, label]) => ({ key, label }));
-  }, [days]);
+export function ReportView({
+  report,
+  from,
+  to,
+  presets,
+  printedAt,
+}: {
+  report: Report;
+  from: string;
+  to: string;
+  presets: { label: string; from: string; to: string }[];
+  printedAt: string;
+}) {
+  const t = id.reports;
+  const [tab, setTab] = useState<Tab>("days");
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
 
-  // Filter days based on month and query
-  const filteredDays = useMemo(() => {
-    return days.filter((d) => {
-      const matchMonth = selectedMonth === "all" || d.monthKey === selectedMonth;
-      const matchSearch =
-        !searchQuery.trim() ||
-        d.dish.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        d.dateDisplay.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        d.eaters.some((e) => e.name.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchMonth && matchSearch;
-    });
-  }, [days, selectedMonth, searchQuery]);
+  const days: ReportDay[] = q
+    ? report.days
+        .map((d) => ({
+          ...d,
+          warungs: d.warungs.filter(
+            (w) =>
+              w.label.toLowerCase().includes(q) ||
+              w.orders.some((o) => o.name.toLowerCase().includes(q) || o.item.toLowerCase().includes(q)),
+          ),
+        }))
+        .filter((d) => d.warungs.length > 0)
+    : report.days;
+  const people = q ? report.people.filter((p) => p.name.toLowerCase().includes(q)) : report.people;
 
-  // Executive summary stats
-  const stats = useMemo(() => {
-    const totalDays = filteredDays.length;
-    const totalPortions = filteredDays.reduce((acc, d) => acc + d.totalPortions, 0);
-    const avgPortions = totalDays > 0 ? (totalPortions / totalDays).toFixed(1) : "0";
-
-    const dishCounts = new Map<string, number>();
-    for (const d of filteredDays) {
-      dishCounts.set(d.dish, (dishCounts.get(d.dish) ?? 0) + d.totalPortions);
-    }
-    const topDishes = Array.from(dishCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3);
-
-    return { totalDays, totalPortions, avgPortions, topDishes };
-  }, [filteredDays]);
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const currentPrintedAt = useMemo(() => {
-    return new Intl.DateTimeFormat("id-ID", {
-      dateStyle: "full",
-      timeStyle: "short",
-    }).format(new Date());
-  }, []);
+  const period = `${formatDisplayDate(from)} s.d. ${formatDisplayDate(to)}`;
+  const avg = report.totalDays > 0 ? (report.totalPortions / report.totalDays).toFixed(1) : "0";
+  const stats = [
+    { label: t.totalDays, value: report.totalDays },
+    { label: t.totalPortions, value: report.totalPortions },
+    { label: t.avgPortions, value: avg },
+    { label: t.peopleCount, value: report.people.filter((p) => p.eaten > 0).length },
+  ];
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header Cetak Khusus Print / PDF */}
-      <div className="print-only mb-6 border-b-2 border-black pb-4 text-left">
-        <h1 className="text-2xl font-black uppercase tracking-tight">
-          Yono Catering &bull; Laporan Rekap Pemesanan
-        </h1>
-        <p className="mt-1 text-xs text-gray-700">
-          Periode:{" "}
-          <span className="font-bold">
-            {selectedMonth === "all"
-              ? id.reports.allTime
-              : months.find((m) => m.key === selectedMonth)?.label ?? selectedMonth}
-          </span>{" "}
-          &bull; Dicetak pada: <span className="font-medium">{currentPrintedAt}</span>
-        </p>
-        <div className="mt-3 flex gap-6 text-xs border-t border-gray-300 pt-2 font-mono">
+    <div className="flex flex-col gap-5">
+      {/* Filter */}
+      <Card className="no-print flex flex-col gap-4">
+        <form method="get" className="grid grid-cols-2 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <div>
-            Total Hari: <strong className="text-black">{stats.totalDays} hari</strong>
+            <label htmlFor="report-from" className="neo-label text-xs">
+              {t.from}
+            </label>
+            <Input id="report-from" type="date" name="from" defaultValue={from} max={to} className="mt-1 w-full" />
           </div>
           <div>
-            Total Porsi: <strong className="text-black">{stats.totalPortions} porsi</strong>
+            <label htmlFor="report-to" className="neo-label text-xs">
+              {t.to}
+            </label>
+            <Input id="report-to" type="date" name="to" defaultValue={to} className="mt-1 w-full" />
           </div>
-          <div>
-            Rata-rata: <strong className="text-black">{stats.avgPortions} porsi/hari</strong>
-          </div>
-        </div>
-      </div>
-
-      {/* Kontrol UI (Filter, Search, Tombol Cetak) */}
-      <Card className="no-print">
-        <div className="flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
-            <div>
-              <label htmlFor="filterMonth" className="neo-label text-xs">
-                {id.reports.filterMonth}
-              </label>
-              <Select
-                id="filterMonth"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="mt-1 text-sm font-semibold"
-              >
-                <option value="all">{id.reports.allTime}</option>
-                {months.map((m) => (
-                  <option key={m.key} value={m.key}>
-                    {m.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div>
-              <label htmlFor="searchQuery" className="neo-label text-xs">
-                Cari Menu / Nama
-              </label>
-              <Input
-                id="searchQuery"
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Contoh: Bakmi, Nasi, Haq..."
-                className="mt-1 text-sm"
-              />
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="primary"
-            onClick={handlePrint}
-            className="flex items-center justify-center gap-2 whitespace-nowrap min-h-[44px] text-sm"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-              />
-            </svg>
-            <span>{id.reports.printBtn}</span>
+          <Button type="submit" variant="primary" className="col-span-2 min-h-[44px] sm:col-span-1">
+            {t.apply}
           </Button>
+        </form>
+        <div className="flex flex-wrap gap-2">
+          {presets.map((p) => {
+            const active = p.from === from && p.to === to;
+            return (
+              <Link
+                key={p.label}
+                href={`/reports?from=${p.from}&to=${p.to}`}
+                aria-current={active ? "true" : undefined}
+                className={`inline-flex min-h-[44px] items-center border-2 border-black px-3 text-sm font-bold ${
+                  active ? "bg-black text-white" : "bg-white hover:bg-amber-50"
+                }`}
+              >
+                {p.label}
+              </Link>
+            );
+          })}
         </div>
       </Card>
 
-      {/* Ringkasan Statistik (KPI Cards) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 no-print">
-        <Card className="flex flex-col justify-between">
-          <span className="text-xs font-bold uppercase text-[var(--text-muted)]">
-            {id.reports.totalDays}
-          </span>
-          <span className="mt-2 text-2xl font-black">{stats.totalDays} Hari</span>
-        </Card>
-        <Card className="flex flex-col justify-between" accent="yellow">
-          <span className="text-xs font-bold uppercase text-[var(--text)]">
-            {id.reports.totalPortions}
-          </span>
-          <span className="mt-2 text-2xl font-black">{stats.totalPortions} Porsi</span>
-        </Card>
-        <Card className="flex flex-col justify-between">
-          <span className="text-xs font-bold uppercase text-[var(--text-muted)]">
-            {id.reports.avgPortions}
-          </span>
-          <span className="mt-2 text-2xl font-black">{stats.avgPortions} Porsi</span>
-        </Card>
-        <Card className="flex flex-col justify-between">
-          <span className="text-xs font-bold uppercase text-[var(--text-muted)]">
-            {id.reports.topDish}
-          </span>
-          <span className="mt-2 text-sm font-bold truncate">
-            {stats.topDishes.length > 0
-              ? `${stats.topDishes[0][0]} (${stats.topDishes[0][1]} porsi)`
-              : "-"}
-          </span>
-        </Card>
+      {/* Print header */}
+      <div className="print-only border-b-2 border-black pb-3">
+        <h1 className="text-xl font-black">{t.printTitle}</h1>
+        <p className="mt-1 text-xs">
+          {t.period}: <strong>{period}</strong> · {t.printedAt} {printedAt}
+        </p>
       </div>
 
-      {/* Daftar Riwayat Harian */}
-      {filteredDays.length === 0 ? (
+      <section aria-label={t.summary}>
+        <p className="no-print mb-2 text-sm font-bold text-[var(--text-muted)]">{period}</p>
+        <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4 print:grid-cols-4 print:gap-0 print:border print:border-black">
+          {stats.map((s, i) => (
+            <div
+              key={s.label}
+              className={`neo-card print:!mb-0 print:!border-0 print:p-2 ${i === 1 ? "bg-[var(--primary)]" : "bg-[var(--surface)]"}`}
+            >
+              <dt className="text-xs font-bold">{s.label}</dt>
+              <dd className="mt-1 text-2xl font-black print:text-lg">{s.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {report.days.length === 0 ? (
         <Card>
-          <p className="text-center py-8 text-[var(--text-muted)] font-medium">
-            {id.reports.noData}
-          </p>
+          <p className="py-6 text-center font-semibold text-[var(--text-muted)]">{t.noData}</p>
         </Card>
       ) : (
-        <div className="flex flex-col gap-4">
-          {filteredDays.map((day) => (
-            <section
-              key={day.id}
-              className="neo-card print-break-inside-avoid bg-[var(--surface)] p-4 sm:p-5"
-            >
-              {/* Header Tanggal & Menu */}
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b-2 border-black pb-3">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-black tracking-tight">{day.dateDisplay}</h2>
-                    <span className="text-xs px-2 py-0.5 font-bold border-2 border-black bg-[var(--primary)] rounded">
-                      {day.totalPortions} Porsi
-                    </span>
-                  </div>
-                  <p className="mt-1 text-base font-extrabold text-[var(--text)]">
-                    Menu: {day.dish}
-                  </p>
-                  {day.note && (
-                    <p className="text-xs text-[var(--text-muted)] italic mt-0.5">
-                      Catatan Dapur: {day.note}
-                    </p>
+        <>
+          <div className="no-print flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div role="group" aria-label={t.view} className="grid grid-cols-2 border-2 border-black sm:inline-grid">
+              {(["days", "people"] as const).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTab(key)}
+                  aria-pressed={tab === key}
+                  className={`min-h-[44px] px-4 text-sm font-black ${tab === key ? "bg-black text-white" : "bg-white hover:bg-amber-50"}`}
+                >
+                  {key === "days" ? t.perDay : t.perPerson}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t.searchPlaceholder}
+                aria-label={t.searchPlaceholder}
+                className="min-w-0 flex-1 text-sm sm:w-56"
+              />
+              <Button type="button" onClick={() => window.print()} className="min-h-[44px] shrink-0 text-sm">
+                {t.printBtn}
+              </Button>
+            </div>
+          </div>
+
+          <div className="no-print">
+            {tab === "days" ? <DaysList days={days} /> : <PeopleTable people={people} />}
+            {((tab === "days" && days.length === 0) || (tab === "people" && people.length === 0)) && (
+              <p className="border-2 border-dashed border-black p-6 text-center font-semibold text-[var(--text-muted)]">
+                {t.noMatch}
+              </p>
+            )}
+          </div>
+
+          <PrintTables report={report} />
+        </>
+      )}
+    </div>
+  );
+}
+
+function DaysList({ days }: { days: ReportDay[] }) {
+  const t = id.reports;
+  return (
+    <ol className="flex flex-col gap-4">
+      {days.map((day) => (
+        <li key={day.dateKey} className="neo-card bg-[var(--surface)]">
+          <div className="flex items-baseline justify-between gap-3 border-b-2 border-black pb-2">
+            <h2 className="font-black">{formatDisplayDate(day.dateKey)}</h2>
+            <span className="shrink-0 border-2 border-black bg-[var(--primary)] px-2 py-0.5 text-xs font-black">
+              {t.portions(day.portions)}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-col gap-3">
+            {day.warungs.map((w) => (
+              <section key={w.id} className={day.warungs.length > 1 ? "border-2 border-black bg-white p-3" : ""}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="break-words font-extrabold">{w.label}</h3>
+                  {day.warungs.length > 1 && (
+                    <span className="shrink-0 text-xs font-bold">{t.portions(w.portions)}</span>
                   )}
                 </div>
-
-                <div className="text-right text-xs font-mono text-[var(--text-muted)]">
-                  <span>{day.dateKey}</span>
-                </div>
-              </div>
-
-              {/* Rincian Porsi (Breakdown) */}
-              <div className="mt-3">
-                <p className="text-xs font-bold uppercase text-[var(--text-muted)] mb-2">
-                  Ringkasan Porsi:
-                </p>
-                {day.breakdown.length === 0 ? (
-                  <p className="text-xs italic text-[var(--text-muted)]">
-                    Belum ada pesanan ikut makan
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {day.breakdown.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between text-xs font-medium border border-black/30 p-2 bg-white rounded"
-                      >
-                        <span className="font-semibold text-gray-900">{item.label}</span>
-                        <span className="font-bold font-mono px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded ml-2">
-                          {item.count} porsi
+                {w.note && <p className="text-xs font-semibold text-[var(--text-muted)]">{w.note}</p>}
+                {w.items.length > 0 ? (
+                  <ul className="mt-2 flex flex-col gap-1">
+                    {w.items.map((item) => (
+                      <li key={item.label} className="flex items-start gap-2 text-sm">
+                        <span className="min-w-[2.5rem] shrink-0 border border-black bg-white text-center font-black">
+                          {item.count}×
                         </span>
-                      </div>
+                        <span className="font-semibold">{item.label}</span>
+                      </li>
                     ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Daftar Pemesan (Eaters) */}
-              <div className="mt-4 pt-3 border-t border-dashed border-black/20">
-                <p className="text-xs font-bold uppercase text-[var(--text-muted)] mb-2">
-                  {id.reports.eaters} ({day.eaters.length} orang):
-                </p>
-                {day.eaters.length === 0 ? (
-                  <p className="text-xs italic text-[var(--text-muted)]">-</p>
+                  </ul>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 text-xs">
-                    {day.eaters.map((e, idx) => (
-                      <div key={idx} className="flex items-baseline gap-1.5">
-                        <span className="font-bold text-gray-900">{idx + 1}. {e.name}:</span>
-                        <span className="text-gray-800">
-                          {e.dish}
-                          {e.addOns ? ` [+ ${e.addOns}]` : ""}
-                          {e.note ? ` [Catatan: ${e.note}]` : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="mt-2 text-sm font-semibold text-[var(--text-muted)]">{t.noOrders}</p>
                 )}
-              </div>
+                {(w.orders.length > 0 || w.skipped.length > 0) && (
+                  <details className="mt-2">
+                    <summary className="inline-flex min-h-[44px] cursor-pointer items-center text-sm font-bold underline">
+                      {t.whoOrdered(w.orders.length)}
+                    </summary>
+                    <ul className="mt-1 flex flex-col gap-1 text-sm">
+                      {w.orders.map((o) => (
+                        <li key={o.name}>
+                          <span className="font-bold">{o.name}</span>: {o.item}
+                          {o.note && <span className="text-[var(--text-muted)]"> · {o.note}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                    {w.skipped.length > 0 && (
+                      <p className="mt-2 text-sm text-[var(--text-muted)]">
+                        <span className="font-bold">{t.nonEaters}:</span> {w.skipped.join(", ")}
+                      </p>
+                    )}
+                  </details>
+                )}
+              </section>
+            ))}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
-              {/* Tidak Ikut Makan */}
-              {day.nonEaters.length > 0 && (
-                <div className="mt-3 pt-2 border-t border-dashed border-black/10 text-xs text-[var(--text-muted)]">
-                  <span className="font-semibold">{id.reports.nonEaters}:</span>{" "}
-                  {day.nonEaters.join(", ")}
-                </div>
-              )}
-            </section>
+function PeopleTable({ people }: { people: Report["people"] }) {
+  const t = id.reports;
+  if (people.length === 0) return null;
+  return (
+    <div className="neo-card bg-white p-0">
+      <table className="w-full border-collapse text-left text-sm">
+        <thead>
+          <tr className="border-b-2 border-black bg-stone-100">
+            <th scope="col" className="p-3 font-black">{t.colName}</th>
+            <th scope="col" className="p-3 text-right font-black">{t.colEaten}</th>
+            <th scope="col" className="p-3 text-right font-black">{t.colSkipped}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {people.map((p) => (
+            <tr key={p.name} className="border-b border-stone-300 last:border-0">
+              <td className="p-3">
+                <span className="font-bold">{p.name}</span>
+                {p.group && <span className="block text-xs text-[var(--text-muted)]">{p.group}</span>}
+              </td>
+              <td className="p-3 text-right text-base font-black">{p.eaten}</td>
+              <td className="p-3 text-right text-[var(--text-muted)]">{p.skipped}</td>
+            </tr>
           ))}
-        </div>
-      )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Paper version: plain bordered tables, both views, plus every order line for checking a bill. */
+function PrintTables({ report }: { report: Report }) {
+  const t = id.reports;
+  const cell = "border border-black px-2 py-1 align-top";
+  const dateShort = (key: string) => key.split("-").reverse().join("/");
+
+  return (
+    <div className="print-only text-[11px]">
+      <h2 className="mb-1 mt-4 text-sm font-black">{t.perPerson}</h2>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-stone-200">
+            <th className={cell}>No</th>
+            <th className={`${cell} text-left`}>{t.colName}</th>
+            <th className={`${cell} text-left`}>{t.colGroup}</th>
+            <th className={cell}>{t.colEaten}</th>
+            <th className={cell}>{t.colSkipped}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {report.people.map((p, i) => (
+            <tr key={p.name} className="break-inside-avoid">
+              <td className={`${cell} text-center`}>{i + 1}</td>
+              <td className={cell}>{p.name}</td>
+              <td className={cell}>{p.group ?? "-"}</td>
+              <td className={`${cell} text-center font-bold`}>{p.eaten}</td>
+              <td className={`${cell} text-center`}>{p.skipped}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h2 className="mb-1 mt-5 text-sm font-black">{t.perDay}</h2>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-stone-200">
+            <th className={`${cell} text-left`}>{t.colDate}</th>
+            <th className={`${cell} text-left`}>{t.colWarung}</th>
+            <th className={`${cell} text-left`}>{t.colItems}</th>
+            <th className={cell}>{t.colPortions}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {report.days.flatMap((d) =>
+            d.warungs.map((w, i) => (
+              <tr key={w.id} className="break-inside-avoid">
+                <td className={cell}>{i === 0 ? dateShort(d.dateKey) : ""}</td>
+                <td className={cell}>{w.label}</td>
+                <td className={cell}>{itemsText(w.items) || "-"}</td>
+                <td className={`${cell} text-center font-bold`}>{w.portions}</td>
+              </tr>
+            )),
+          )}
+          <tr className="bg-stone-100 font-black">
+            <td className={cell} colSpan={3}>
+              {t.total}
+            </td>
+            <td className={`${cell} text-center`}>{report.totalPortions}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 className="mb-1 mt-5 break-before-page text-sm font-black">{t.orderLines}</h2>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-stone-200">
+            <th className={`${cell} text-left`}>{t.colDate}</th>
+            <th className={`${cell} text-left`}>{t.colName}</th>
+            <th className={`${cell} text-left`}>{t.colOrder}</th>
+            <th className={`${cell} text-left`}>{t.colNote}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {report.days.flatMap((d) =>
+            d.warungs.flatMap((w) =>
+              w.orders.map((o) => (
+                <tr key={`${w.id}-${o.name}`} className="break-inside-avoid">
+                  <td className={cell}>{dateShort(d.dateKey)}</td>
+                  <td className={cell}>{o.name}</td>
+                  <td className={cell}>{o.item}</td>
+                  <td className={cell}>{o.note ?? ""}</td>
+                </tr>
+              )),
+            ),
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }

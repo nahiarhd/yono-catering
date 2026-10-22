@@ -8,6 +8,7 @@ import { id } from "@/lib/id";
 import { getMenuDay, saveResponse } from "@/lib/menu-data";
 import { broadcastRealtime } from "@/lib/realtime";
 import { callTelegram, escapeHtml, sendTelegramMessage } from "@/lib/telegram";
+import { verifyTelegramLinkPayload } from "@/lib/telegram-status";
 import {
   decodeOrder,
   orderSelection,
@@ -113,6 +114,33 @@ export async function POST(request: Request) {
     const chatId = String(message.chat.id);
     const firstName = message.from?.first_name || message.chat.first_name || "kamu";
     const safeName = escapeHtml(firstName);
+
+    // "/start <payload>" comes from the link on the Pengaturan/Pengguna page
+    const startPayload = /^\/start\s+(\S+)/.exec(String(message.text ?? ""))?.[1];
+    const linkUserId = startPayload && message.chat.type === "private" ? verifyTelegramLinkPayload(startPayload) : null;
+    const linkUser = linkUserId
+      ? await db.user.findUnique({ where: { id: linkUserId }, select: { id: true, name: true } })
+      : null;
+    if (linkUser) {
+      // One chat belongs to one account, or the order buttons cannot tell who is ordering
+      await db.$transaction([
+        db.user.updateMany({
+          where: { telegramChatId: chatId, id: { not: linkUser.id } },
+          data: { telegramChatId: null },
+        }),
+        db.user.update({
+          where: { id: linkUser.id },
+          data: { telegramChatId: chatId, telegramFailedAt: null },
+        }),
+      ]);
+      revalidatePath("/users");
+      revalidatePath("/settings");
+      await sendTelegramMessage(
+        chatId,
+        `Halo <b>${safeName}</b>! Telegram kamu sudah terhubung ke akun <b>${escapeHtml(linkUser.name)}</b>. Menu dan pengingat makan malam akan dikirim ke sini.`,
+      );
+      return NextResponse.json({ ok: true });
+    }
 
     const replyText = [
       `Halo <b>${safeName}</b>! 👋`,

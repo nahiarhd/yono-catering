@@ -905,18 +905,7 @@ body {
 }
 
 /* ── Default dishes & preferences ── */
-.neo-dish-quick {
-  margin-bottom: 10px;
-}
 
-.neo-dish-quick-label {
-  margin: 0 0 8px;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-}
 
 .neo-dish-chips {
   display: grid;
@@ -985,43 +974,10 @@ body {
   color: var(--text);
 }
 
-.neo-dish-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 
-.neo-dish-list-item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border: 2px solid var(--neo-black);
-  background: var(--surface);
-  padding: 10px 12px;
-}
 
-.neo-dish-list-label {
-  font-size: 16px;
-  font-weight: 900;
-  text-transform: capitalize;
-}
 
-.neo-dish-list-msg {
-  width: 100%;
-  margin: 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--success);
-}
 
-.neo-dish-list-msg--error {
-  color: var(--danger);
-}
 
 .neo-pref-card {
   background: #ffffff;

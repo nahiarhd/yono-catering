@@ -6,7 +6,14 @@ import {
   removeDishPreferenceAction,
   type ActionState,
 } from "@/app/home/actions";
-import { normalizeDishKey, type DefaultDish } from "@/lib/dishes";
+import {
+  computeSelectionDish,
+  normalizeDishKey,
+  presetDishOptions,
+  splitSelection,
+  type DefaultDish,
+  type DishOption,
+} from "@/lib/dishes";
 import { id } from "@/lib/id";
 import { Button, Card, Input } from "./ui";
 
@@ -47,10 +54,9 @@ export function DishPreferencesCard({
     activeDishObj && typeof activeDishObj !== "string"
       ? activeDishObj.warung ?? null
       : null;
-  const activeSubDishes =
-    activeDishObj && typeof activeDishObj !== "string"
-      ? activeDishObj.subDishes ?? []
-      : [];
+  const activeOptions = activeDishObj
+    ? presetDishOptions(typeof activeDishObj === "string" ? { name: activeDishObj } : activeDishObj)
+    : [];
 
   return (
     <Card className="neo-pref-card">
@@ -91,7 +97,7 @@ export function DishPreferencesCard({
           key={active}
           forDish={active}
           warung={activeWarung}
-          subDishes={activeSubDishes}
+          options={activeOptions}
           initial={prefByKey.get(normalizeDishKey(active))}
         />
       )}
@@ -102,12 +108,12 @@ export function DishPreferencesCard({
 function DishPreferenceEditor({
   forDish,
   warung,
-  subDishes = [],
+  options,
   initial,
 }: {
   forDish: string;
   warung?: string | null;
-  subDishes?: string[];
+  options: DishOption[];
   initial?: Pref;
 }) {
   const t = id.preferences;
@@ -116,7 +122,17 @@ function DishPreferenceEditor({
   const [removeState, removeAction, removePending] = useActionState(removeDishPreferenceAction, {});
 
   const [wants, setWants] = useState(initial?.wants !== false);
-  const [subDish, setSubDish] = useState(initial?.swapDish ?? "");
+  const isMultiDish = options.length > 1;
+  const initialParts = splitSelection(options, initial?.swapDish);
+  const [pickedDish, setPickedDish] = useState(initialParts.dish);
+  const [variant, setVariant] = useState(initialParts.variant);
+  const activeOption = isMultiDish ? options.find((o) => o.name === pickedDish) : options[0];
+  const subDishes = activeOption?.variants ?? [];
+  const subDish = computeSelectionDish({
+    isMultiDish,
+    selectedDish: isMultiDish ? pickedDish : activeOption?.name,
+    selectedVariant: variant,
+  });
   const [note, setNote] = useState(initial?.note ?? "");
   const noteId = useId();
 
@@ -155,17 +171,20 @@ function DishPreferenceEditor({
           </button>
         </div>
 
-        {wants && subDishes.length > 0 && (
+        {wants && isMultiDish && (
           <div className="neo-response-fieldset mt-3">
-            <p className="text-xs font-bold uppercase mb-1.5">{t.chooseVariantDefault}</p>
+            <p className="text-xs font-bold uppercase mb-1.5">{t.chooseDishDefault}</p>
             <div className="flex flex-wrap gap-2">
-              {subDishes.map((variant) => {
-                const selected = subDish === variant;
+              {options.map((o) => {
+                const selected = pickedDish === o.name;
                 return (
                   <button
-                    key={variant}
+                    key={o.name}
                     type="button"
-                    onClick={() => setSubDish((curr) => (curr === variant ? "" : variant))}
+                    onClick={() => {
+                      setPickedDish(selected ? "" : o.name);
+                      setVariant("");
+                    }}
                     className={`border-2 border-black font-extrabold text-xs px-3 py-2 min-h-[44px] transition-all cursor-pointer ${
                       selected
                         ? "bg-[var(--primary)] text-black shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
@@ -173,7 +192,33 @@ function DishPreferenceEditor({
                     }`}
                     aria-pressed={selected}
                   >
-                    {variant}
+                    {o.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {wants && subDishes.length > 0 && (
+          <div className="neo-response-fieldset mt-3">
+            <p className="text-xs font-bold uppercase mb-1.5">{t.chooseVariantDefault}</p>
+            <div className="flex flex-wrap gap-2">
+              {subDishes.map((v) => {
+                const selected = variant === v;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setVariant((curr) => (curr === v ? "" : v))}
+                    className={`border-2 border-black font-extrabold text-xs px-3 py-2 min-h-[44px] transition-all cursor-pointer ${
+                      selected
+                        ? "bg-[var(--primary)] text-black shadow-[2px_2px_0px_#000] -translate-x-[1px] -translate-y-[1px]"
+                        : "bg-white hover:bg-stone-100 text-black"
+                    }`}
+                    aria-pressed={selected}
+                  >
+                    {v}
                   </button>
                 );
               })}

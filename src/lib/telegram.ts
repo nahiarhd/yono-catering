@@ -9,6 +9,13 @@ export function getBotUsername(): string {
   return raw.trim().replace(/^@/, "");
 }
 
+/** Telegram errors that mean this person cannot get messages until they (re)start the bot. */
+export function isUnreachable(description: string): boolean {
+  return /bot can't initiate conversation|chat not found|bot was blocked by the user|user is deactivated/i.test(
+    description,
+  );
+}
+
 export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -95,7 +102,7 @@ export async function sendTelegramMessage(
   chatId: string,
   text: string,
   options?: { parseMode?: "HTML" | "Markdown"; replyMarkup?: unknown }
-): Promise<{ ok: boolean; error?: string; messageId?: number }> {
+): Promise<{ ok: boolean; error?: string; messageId?: number; unreachable?: boolean }> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     console.warn("TELEGRAM_BOT_TOKEN tidak terkonfigurasi di environment.");
@@ -133,6 +140,7 @@ export async function sendTelegramMessage(
     const data = await res.json();
     if (!data.ok) {
       let desc: string = data.description || "Gagal mengirim pesan Telegram";
+      const unreachable = isUnreachable(desc);
       if (desc.includes("bot can't initiate conversation")) {
         desc = `User belum pernah klik /start di bot @${getBotUsername()}`;
       } else if (desc.includes("chat not found")) {
@@ -140,7 +148,7 @@ export async function sendTelegramMessage(
       } else if (desc.includes("bot was blocked by the user")) {
         desc = "Bot diblokir oleh user";
       }
-      return { ok: false, error: desc };
+      return { ok: false, error: desc, unreachable };
     }
 
     return { ok: true, messageId: data.result?.message_id };
@@ -153,28 +161,26 @@ export async function sendTelegramBroadcast(
   chatIds: string[],
   text: string,
   replyMarkup?: unknown
-): Promise<{ sentCount: number; failedCount: number }> {
+): Promise<{ sentCount: number; failedCount: number; reached: string[]; unreachable: string[] }> {
   const validChatIds = Array.from(new Set(chatIds.map((c) => c.trim()).filter(Boolean)));
-  if (validChatIds.length === 0) {
-    return { sentCount: 0, failedCount: 0 };
-  }
-
-  let sentCount = 0;
+  const reached: string[] = [];
+  const unreachable: string[] = [];
   let failedCount = 0;
 
   const results = await Promise.allSettled(
     validChatIds.map((chatId) => sendTelegramMessage(chatId, text, { replyMarkup }))
   );
 
-  for (const r of results) {
+  results.forEach((r, i) => {
     if (r.status === "fulfilled" && r.value.ok) {
-      sentCount++;
+      reached.push(validChatIds[i]);
     } else {
       failedCount++;
+      if (r.status === "fulfilled" && r.value.unreachable) unreachable.push(validChatIds[i]);
     }
-  }
+  });
 
-  return { sentCount, failedCount };
+  return { sentCount: reached.length, failedCount, reached, unreachable };
 }
 
 /** For calls whose failure only means a stale button (edit, answer callback): logs instead of throwing. */

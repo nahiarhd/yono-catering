@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { createSession, requireAdmin, requireUser, verifyPin, hashPin } from "@/lib/auth";
 import { parseHHMM } from "@/lib/cutoff";
-import { normalizeDishKey, parseDefaultDishes, parseSubDishes, formatSubDishes } from "@/lib/dishes";
+import {
+  flattenDishOptions,
+  formatSubDishes,
+  normalizeDishKey,
+  parseDefaultDishes,
+  parseDishOptions,
+  parseSubDishes,
+} from "@/lib/dishes";
 import { todayKey, parseDateKey } from "@/lib/dates";
 import { getSettings } from "@/lib/settings";
 import { broadcastRealtime } from "@/lib/realtime";
@@ -87,19 +94,27 @@ export async function updateSettingsAction(
   return { ok: true };
 }
 
+/** A preset is one warung; its name is the joined dish names so member preferences keep matching menu.dish. */
+function readPresetForm(formData: FormData) {
+  const dishes = parseDishOptions(String(formData.get("dishOptions") ?? ""));
+  const flat = flattenDishOptions(dishes);
+  return {
+    warung: String(formData.get("warung") ?? "").trim() || null,
+    dish: flat.dish,
+    note: String(formData.get("note") ?? "").trim() || null,
+    subDishes: parseSubDishes(flat.subDishes),
+    addOns: parseSubDishes(flat.addOns),
+    dishes,
+  };
+}
+
 export async function addDefaultDishAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   await requireAdmin();
 
-  const warung = String(formData.get("warung") ?? "").trim() || null;
-  const dish = String(formData.get("dish") ?? "").trim();
-  const note = String(formData.get("note") ?? "").trim() || null;
-  const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
-  const subDishes = parseSubDishes(subDishesRaw);
-  const addOnsRaw = String(formData.get("addOns") ?? "").trim();
-  const addOns = parseSubDishes(addOnsRaw);
+  const { warung, dish, note, subDishes, addOns, dishes: options } = readPresetForm(formData);
 
   if (!dish) return { error: id.errors.dishRequired };
 
@@ -112,7 +127,7 @@ export async function addDefaultDishAction(
 
   await db.settings.update({
     where: { id: "singleton" },
-    data: { defaultDishes: [...dishes, { warung, name: dish, note, subDishes, addOns }] },
+    data: { defaultDishes: [...dishes, { warung, name: dish, note, subDishes, addOns, dishes: options }] },
   });
 
   revalidatePath("/settings");
@@ -130,13 +145,7 @@ export async function updateDefaultDishAction(
   await requireAdmin();
 
   const originalDish = String(formData.get("originalDish") ?? "").trim();
-  const warung = String(formData.get("warung") ?? "").trim() || null;
-  const dish = String(formData.get("dish") ?? "").trim();
-  const note = String(formData.get("note") ?? "").trim() || null;
-  const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
-  const subDishes = parseSubDishes(subDishesRaw);
-  const addOnsRaw = String(formData.get("addOns") ?? "").trim();
-  const addOns = parseSubDishes(addOnsRaw);
+  const { warung, dish, note, subDishes, addOns, dishes: options } = readPresetForm(formData);
 
   if (!originalDish || !dish) return { error: id.errors.dishRequired };
 
@@ -158,7 +167,7 @@ export async function updateDefaultDishAction(
   }
 
   const nextDishes = [...dishes];
-  nextDishes[targetIndex] = { warung, name: dish, note, subDishes, addOns };
+  nextDishes[targetIndex] = { warung, name: dish, note, subDishes, addOns, dishes: options };
 
   await db.settings.update({
     where: { id: "singleton" },
@@ -190,6 +199,7 @@ export async function updateDefaultDishAction(
         dish,
         subDishes: subDishes.length > 0 ? formatSubDishes(subDishes) : null,
         addOns: addOns.length > 0 ? formatSubDishes(addOns) : null,
+        dishOptions: options,
         note,
       },
     });
@@ -263,4 +273,19 @@ export async function testTelegramReminderAction(): Promise<ActionState> {
     ok: true,
     message: `Pengingat berhasil diproses. Terkirim ke ${result.sentCount ?? 0} orang (Gagal: ${result.failedCount ?? 0}).`,
   };
+}
+export async function setOwnActiveAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireUser();
+  const active = String(formData.get("active") ?? "") === "yes";
+  await db.user.update({ where: { id: user.id }, data: { active } });
+
+  revalidatePath("/settings");
+  revalidatePath("/home");
+  revalidatePath("/yono");
+  revalidatePath("/users");
+  broadcastRealtime("revalidate");
+  return { ok: true };
 }

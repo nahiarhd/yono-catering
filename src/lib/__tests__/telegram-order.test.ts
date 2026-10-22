@@ -13,6 +13,35 @@ import {
 const menu = { dish: "Nasi Ayam, Nasi Ikan", subDishes: "Goreng, Bakar", addOns: "Telur, Tempe, Sambal" };
 const date = "2026-10-14";
 
+function testPerDishOptions() {
+  const perDish = {
+    dish: "Bakmi, Soto",
+    subDishes: "Goreng, Rebus",
+    addOns: "Telur",
+    dishOptions: [
+      { name: "Bakmi", variants: ["Goreng", "Rebus"], addOns: [] },
+      { name: "Soto", variants: [], addOns: ["Telur"] },
+    ],
+  };
+  const base = { ...startOrder(date), wants: true };
+  // Soto has no variants, so the flow skips straight to its own add-ons
+  const soto = renderOrderScreen(perDish, { ...base, dish: 1 });
+  assert.match(soto.text, /add-on/);
+  assert.deepStrictEqual(orderSelection(perDish, { ...base, dish: 1, addOnMask: 1, addOnsDone: true }), {
+    wants: true,
+    swapDish: "Soto",
+    addOns: "Telur",
+  });
+  const bakmi = renderOrderScreen(perDish, { ...base, dish: 0 });
+  assert.match(bakmi.text, /varian/);
+  assert.strictEqual(bakmi.keyboard.length, 3);
+  assert.deepStrictEqual(orderSelection(perDish, { ...base, dish: 0, variant: 1, addOnsDone: true }), {
+    wants: true,
+    swapDish: "Bakmi (Rebus)",
+    addOns: null,
+  });
+}
+
 function testEncodeRoundTripAndSize() {
   const s: OrderState = { date, menu: 3, wants: true, dish: 1, variant: 0, addOnMask: 5, addOnsDone: true };
   const data = encodeOrder(s, true);
@@ -114,4 +143,5 @@ testOutOfRangeIndexAsksAgain();
 testShowsCurrentOrder();
 testWarungScreenPicksMenuIndex();
 testEntryKeyboardSkipsNonHttpsUrl();
+testPerDishOptions();
 console.log("telegram-order tests passed");

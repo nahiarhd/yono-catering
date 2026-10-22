@@ -1,5 +1,5 @@
 import { isValidDateKey } from "./cutoff";
-import { parseSubDishes, resolveMenuSelection } from "./dishes";
+import { menuDishOptions, resolveMenuSelection } from "./dishes";
 import { escapeHtml } from "./telegram";
 
 // The whole order-in-progress rides in callback_data (Telegram caps it at 64 bytes), so no session table.
@@ -17,7 +17,13 @@ export type OrderState = {
 export type InlineButton = { text: string; callback_data?: string; url?: string };
 export type InlineKeyboard = InlineButton[][];
 
-type OrderMenu = { vendor?: string; dish: string; subDishes: string | null; addOns: string | null };
+type OrderMenu = {
+  vendor?: string;
+  dish: string;
+  subDishes: string | null;
+  addOns: string | null;
+  dishOptions?: unknown;
+};
 type CurrentResponse = { wants: boolean; swapDish: string | null; addOns: string | null };
 
 export function encodeOrder(s: OrderState, save = false): string {
@@ -60,11 +66,14 @@ export function startOrder(date: string): OrderState {
   return { date, addOnMask: 0, addOnsDone: false };
 }
 
-function options(menu: OrderMenu) {
+/** Variants and add-ons come from the picked dish (the only one when there is just one). */
+function options(menu: OrderMenu, s: OrderState) {
+  const all = menuDishOptions(menu);
+  const picked = all.length > 1 ? all[s.dish ?? -1] : all[0];
   return {
-    dishes: parseSubDishes(menu.dish),
-    variants: parseSubDishes(menu.subDishes),
-    addOns: parseSubDishes(menu.addOns),
+    dishes: all.map((o) => o.name),
+    variants: picked?.variants ?? [],
+    addOns: picked?.addOns ?? [],
   };
 }
 
@@ -75,7 +84,7 @@ export function orderSelection(
 ): { wants: boolean; swapDish: string | null; addOns: string | null } | null {
   if (s.wants === undefined) return null;
   if (!s.wants) return { wants: false, swapDish: null, addOns: null };
-  const { dishes, variants, addOns } = options(menu);
+  const { dishes, variants, addOns } = options(menu, s);
   const picked = resolveMenuSelection(menu, {
     selectedDish: dishes[s.dish ?? -1] ?? "",
     selectedVariant: variants[s.variant ?? -1] ?? "",
@@ -118,7 +127,7 @@ export function renderOrderScreen(
   s: OrderState,
   current?: CurrentResponse | null,
 ): { text: string; keyboard: InlineKeyboard } {
-  const { dishes, variants, addOns } = options(menu);
+  const { dishes, variants, addOns } = options(menu, s);
   const at = menu.vendor && menu.vendor !== menu.dish ? ` (${escapeHtml(menu.vendor)})` : "";
   const head = `🍽️ Menu hari ini${at}: <b>${escapeHtml(menu.dish)}</b>`;
   const go = (next: Partial<OrderState>, save = false) => encodeOrder({ ...s, ...next }, save);

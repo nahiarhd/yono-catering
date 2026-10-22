@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { requireUser, isAdmin } from "@/lib/auth";
+import { requireUser, isAdmin, canOrder } from "@/lib/auth";
+import { telegramLinkUrl, telegramStatus } from "@/lib/telegram-status";
+import { AwayCard, TelegramLinkCard } from "@/components/account-status-cards";
 import { getSettings, getDefaultDishes } from "@/lib/settings";
 import { id } from "@/lib/id";
 import { PageShell, Card } from "@/components/ui";
@@ -20,8 +22,8 @@ export default async function SettingsPage() {
         getSettings(),
         getDefaultDishes(),
         db.menu.findFirst({ where: { date: parseDateKey(todayKey()) }, orderBy: { createdAt: "asc" } }),
-        db.user.count({ where: { role: { not: "yono" }, telegramChatId: { not: null } } }),
-        db.user.count({ where: { role: { not: "yono" } } }),
+        db.user.count({ where: { role: { not: "yono" }, active: true, telegramChatId: { not: null } } }),
+        db.user.count({ where: { role: { not: "yono" }, active: true } }),
       ])
     : [null, null, null, 0, 0];
 
@@ -31,6 +33,13 @@ export default async function SettingsPage() {
 
   return (
     <PageShell title={id.settings.title} nav={<AppNav role={user.role} />}>
+      {canOrder(user) && (
+        <>
+          <AwayCard active={user.active} />
+          <TelegramLinkCard status={telegramStatus(user)} linkUrl={telegramLinkUrl(user.id)} />
+        </>
+      )}
+
       {/* Pengaturan Akun: Ubah PIN (Bisa diakses oleh semua pengguna) */}
       <UpdatePinCard />
 

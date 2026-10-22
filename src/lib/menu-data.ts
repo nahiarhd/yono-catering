@@ -2,6 +2,7 @@ import { db } from "./db";
 import { getSettings } from "./settings";
 import { isResponsesLocked } from "./cutoff";
 import { parseDateKey } from "./dates";
+import type { DishOption } from "./dishes";
 
 /** All warung menus for a day, plus the one picked by menuId (or the first). */
 export async function getMenuDay(dateKey: string, menuId?: string | null) {
@@ -34,6 +35,7 @@ export type MenuFields = {
   dish: string;
   subDishes?: string | null;
   addOns?: string | null;
+  dishOptions?: DishOption[];
   note: string | null;
   cutoffOverride: string | null;
 };

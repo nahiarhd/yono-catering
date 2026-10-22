@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser, canOrder } from "@/lib/auth";
 import { todayKey, formatDisplayDate } from "@/lib/dates";
 import { effectiveCutoff, isResponsesLocked } from "@/lib/cutoff";
 import { getMenuDay } from "@/lib/menu-data";
-import { parseSubDishes, parseDefaultDishes } from "@/lib/dishes";
+import { menuDishOptions, parseDefaultDishes } from "@/lib/dishes";
 import {
   getPreferenceForDish,
   preferenceToInitial,
@@ -18,6 +19,7 @@ import { DatePicker } from "@/components/date-picker";
 import { ResponseForm } from "@/components/response-form";
 import { MemberOrdersSummary } from "@/components/member-orders-summary";
 import { WarungTabs } from "@/components/warung-tabs";
+import { DishOptionsList } from "@/components/dish-options-list";
 
 export default async function MemberHomePage({
   searchParams,
@@ -34,7 +36,7 @@ export default async function MemberHomePage({
   const [{ settings, menus, ...day }, eaters] = await Promise.all([
     getMenuDay(dateKey, params.m),
     db.user.findMany({
-      where: { role: { not: "yono" } },
+      where: { role: { not: "yono" }, active: true },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
@@ -61,9 +63,7 @@ export default async function MemberHomePage({
       : null;
   const responseInitial = myResponse ?? preferenceToInitial(dishPreference);
   const prefilledFromPreference = !myResponse && !!dishPreference;
-  const subDishes = menu ? parseSubDishes(menu.subDishes) : [];
-  const addOns = menu ? parseSubDishes(menu.addOns) : [];
-  const dishOptions = menu ? parseSubDishes(menu.dish) : [];
+  const options = menu ? menuDishOptions(menu) : [];
   const parsedPresets = parseDefaultDishes(settings.defaultDishes);
   const matchedPreset = menu
     ? parsedPresets.find(
@@ -103,6 +103,14 @@ export default async function MemberHomePage({
   return (
     <PageShell title={formatDisplayDate(dateKey)} nav={<AppNav role={user.role} />}>
       <DatePicker key={dateKey} value={dateKey} todayKey={todayKey()} basePath="/home" />
+      {!user.active && canOrder(user) && (
+        <p className="border-2 border-black bg-white p-3 text-sm font-bold">
+          {t.awayBanner}{" "}
+          <Link href="/settings" className="underline">
+            {t.awayBannerLink}
+          </Link>
+        </p>
+      )}
       <WarungTabs
         menus={menus}
         activeId={menu?.id ?? null}
@@ -124,56 +132,7 @@ export default async function MemberHomePage({
               )}
             </div>
 
-            {dishOptions.length > 1 ? (
-              <div className="mt-2.5">
-                <p className="text-xs font-bold uppercase text-[var(--text-muted)] mb-1.5">
-                  Daftar Pilihan Menu Hari Ini ({dishOptions.length} menu):
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {dishOptions.map((item) => (
-                    <span
-                      key={item}
-                      className="text-xs font-black bg-white border-2 border-black px-2.5 py-1 shadow-[2px_2px_0px_#000]"
-                    >
-                      🍴 {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="mt-2 text-2xl font-extrabold">{menu.dish}</p>
-            )}
-
-            {subDishes.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-bold text-[var(--text-muted)] mr-1">
-                  Pilihan Varian:
-                </span>
-                {subDishes.map((sub) => (
-                  <span
-                    key={sub}
-                    className="text-xs font-bold bg-amber-100 border border-black px-2 py-0.5"
-                  >
-                    {sub}
-                  </span>
-                ))}
-              </div>
-            )}
-            {addOns.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-bold text-[var(--text-muted)] mr-1">
-                  Pilihan Add-on:
-                </span>
-                {addOns.map((addon) => (
-                  <span
-                    key={addon}
-                    className="text-xs font-bold bg-emerald-100 border border-black px-2 py-0.5"
-                  >
-                    + {addon}
-                  </span>
-                ))}
-              </div>
-            )}
+            <DishOptionsList options={options} />
             <p className="mt-3 text-sm font-semibold">
               {t.respondBefore} {effectiveCutoff(settings.standingCutoff, menu.cutoffOverride)}
               {locked ? ` · ${t.locked}` : ""}
@@ -204,10 +163,7 @@ export default async function MemberHomePage({
               locked={locked}
               dateKey={dateKey}
               menuId={menu.id}
-              dish={menu.dish}
-              dishOptions={dishOptions}
-              subDishes={subDishes}
-              addOns={addOns}
+              options={options}
               initial={responseInitial}
               prefilledFromPreference={prefilledFromPreference}
             />

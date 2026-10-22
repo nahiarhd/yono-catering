@@ -3,97 +3,68 @@ import { db } from "@/lib/db";
 import { id } from "@/lib/id";
 import { PageShell } from "@/components/ui";
 import { AppNav } from "@/components/nav";
-import { formatDateKey, formatDisplayDate, parseDateKey } from "@/lib/dates";
-import { ReportView, type ReportDay } from "@/components/report-view";
+import { isValidDateKey } from "@/lib/cutoff";
+import { formatDateKey, parseDateKey, todayKey } from "@/lib/dates";
+import { buildReport } from "@/lib/report";
+import { ReportView } from "@/components/report-view";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReportsPage() {
-  const user = await requireAdmin();
+const MAX_RANGE_DAYS = 366;
 
-  // ponytail: full history by request, bounded by a few warung menus per day; paginate by month if this gets slow
-  const rawMenus = await db.menu.findMany({
+function addDays(key: string, days: number) {
+  return formatDateKey(new Date(parseDateKey(key).getTime() + days * 86_400_000));
+}
+
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const user = await requireAdmin();
+  const params = await searchParams;
+  const today = todayKey();
+  const monthStart = `${today.slice(0, 7)}-01`;
+
+  let from = params.from && isValidDateKey(params.from) ? params.from : monthStart;
+  let to = params.to && isValidDateKey(params.to) ? params.to : today;
+  if (from > to) [from, to] = [to, from];
+  // Keeps the query bounded however wide a hand-typed URL asks for
+  if (from < addDays(to, -MAX_RANGE_DAYS)) from = addDays(to, -MAX_RANGE_DAYS);
+
+  const lastMonthEnd = addDays(monthStart, -1);
+  const presets = [
+    { label: id.reports.thisMonth, from: monthStart, to: today },
+    { label: id.reports.lastMonth, from: `${lastMonthEnd.slice(0, 7)}-01`, to: lastMonthEnd },
+    { label: id.reports.last30, from: addDays(today, -29), to: today },
+  ];
+
+  const menus = await db.menu.findMany({
+    where: { date: { gte: parseDateKey(from), lte: parseDateKey(to) } },
     include: {
       responses: {
         include: {
-          user: { select: { id: true, name: true, role: true } },
+          user: { select: { id: true, name: true, role: true, group: { select: { name: true } } } },
         },
         orderBy: { user: { name: "asc" } },
       },
     },
-    orderBy: { date: "desc" },
-  });
-
-  const monthFormatter = new Intl.DateTimeFormat("id-ID", {
-    month: "long",
-    year: "numeric",
-  });
-
-  const reportDays: ReportDay[] = rawMenus.map((menu) => {
-    const dateKey = formatDateKey(menu.date);
-    const dateDisplay = formatDisplayDate(dateKey);
-    const parsedDate = parseDateKey(dateKey);
-    const monthKey = dateKey.slice(0, 7);
-    const monthDisplay = monthFormatter.format(parsedDate);
-
-    const nonYonoResponses = menu.responses.filter((r) => r.user.role !== "yono");
-    const eatingResponses = nonYonoResponses.filter((r) => r.wants);
-    const notEatingResponses = nonYonoResponses.filter((r) => !r.wants);
-
-    // Group portion breakdown by variant + add-on + note
-    const portionMap = new Map<string, number>();
-    for (const r of eatingResponses) {
-      const dish = r.swapDish?.trim() || menu.dish;
-      const dishLabel = dish !== menu.dish ? (dish.startsWith("(") ? dish : `(${dish})`) : dish;
-      const addOns = r.addOns?.trim() ? ` [+ ${r.addOns.trim()}]` : "";
-      const note = r.note?.trim() ? ` [Catatan: ${r.note.trim()}]` : "";
-      const key = `${dishLabel}${addOns}${note}`;
-      portionMap.set(key, (portionMap.get(key) ?? 0) + 1);
-    }
-
-    const breakdown = Array.from(portionMap.entries()).map(([label, count]) => ({
-      label,
-      count,
-    }));
-
-    const eaters = eatingResponses.map((r) => ({
-      name: r.user.name,
-      dish: r.swapDish?.trim() || menu.dish,
-      addOns: r.addOns?.trim() || null,
-      note: r.note?.trim() || null,
-    }));
-
-    const nonEaters = notEatingResponses.map((r) => r.user.name);
-
-    return {
-      id: menu.id,
-      dateKey,
-      dateDisplay,
-      monthKey,
-      monthDisplay,
-      dish: menu.vendor ? `${menu.vendor} · ${menu.dish}` : menu.dish,
-      note: menu.note,
-      totalPortions: eatingResponses.length,
-      totalNotEating: notEatingResponses.length,
-      breakdown,
-      eaters,
-      nonEaters,
-    };
+    orderBy: [{ date: "desc" }, { createdAt: "asc" }],
   });
 
   return (
-    <PageShell
-      title={id.reports.title}
-      maxWidth="max-w-4xl"
-      nav={<AppNav role={user.role} />}
-    >
-      <div className="no-print -mt-3">
-        <p className="text-sm font-medium text-[var(--text-muted)]">
-          {id.reports.subtitle}
-        </p>
-      </div>
-
-      <ReportView days={reportDays} />
+    <PageShell title={id.reports.title} maxWidth="max-w-5xl" nav={<AppNav role={user.role} />}>
+      <ReportView
+        report={buildReport(menus)}
+        from={from}
+        to={to}
+        presets={presets}
+        printedAt={new Intl.DateTimeFormat("id-ID", {
+          dateStyle: "long",
+          timeStyle: "short",
+          timeZone: process.env.HOUSEHOLD_TZ ?? "Asia/Jakarta",
+        }).format(new Date())}
+      />
     </PageShell>
   );
 }

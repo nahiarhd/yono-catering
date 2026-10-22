@@ -133,6 +133,55 @@ async function main() {
     { swapDish: null, addOns: null },
   );
 
+  // Per-dish options: variants and add-ons only apply to their own dish
+  const {
+    parseDishOptions,
+    flattenDishOptions,
+    menuDishOptions,
+    presetDishOptions,
+    splitSelection,
+  } = await import("../dishes");
+  const perDish = parseDishOptions(
+    JSON.stringify([
+      { name: "Bakmi Goreng", variants: ["Pedas", "Tidak pedas"], addOns: ["Telor"] },
+      { name: "Nasi, Goreng", variants: [], addOns: ["Kerupuk", "kerupuk"] },
+      { name: "  " },
+      { name: "bakmi goreng", variants: ["dup"] },
+    ]),
+  );
+  assert.deepStrictEqual(perDish, [
+    { name: "Bakmi Goreng", variants: ["Pedas", "Tidak pedas"], addOns: ["Telor"] },
+    { name: "Nasi  Goreng", variants: [], addOns: ["Kerupuk"] },
+  ]);
+  assert.deepStrictEqual(parseDishOptions("not json"), []);
+  const flat = flattenDishOptions(perDish);
+  assert.deepStrictEqual(flat, { dish: "Bakmi Goreng, Nasi  Goreng", subDishes: "Pedas, Tidak pedas", addOns: "Telor, Kerupuk" });
+
+  const perDishMenu = { ...flat, dishOptions: perDish };
+  assert.deepStrictEqual(menuDishOptions(perDishMenu), perDish);
+  // Nasi Goreng has no variants, so none is required, and Telor is not one of its add-ons
+  assert.deepStrictEqual(
+    resolveMenuSelection(perDishMenu, { selectedDish: "nasi  goreng", selectedVariant: "", addOns: "Telor, Kerupuk" }),
+    { swapDish: "Nasi  Goreng", addOns: "Kerupuk" },
+  );
+  assert.strictEqual(
+    resolveMenuSelection(perDishMenu, { selectedDish: "Bakmi Goreng", selectedVariant: "", addOns: "" }),
+    "variantRequired",
+  );
+  // Legacy menus share one variant list across dishes
+  assert.deepStrictEqual(menuDishOptions(multi), [
+    { name: "Bakmi", variants: ["Pedas", "Sedang"], addOns: [] },
+    { name: "Nasi Goreng", variants: ["Pedas", "Sedang"], addOns: [] },
+  ]);
+  assert.deepStrictEqual(presetDishOptions({ name: "Soto", subDishes: ["Ayam"], addOns: [] }), [
+    { name: "Soto", variants: ["Ayam"], addOns: [] },
+  ]);
+
+  assert.deepStrictEqual(splitSelection(perDish, "Bakmi Goreng (pedas)"), { dish: "Bakmi Goreng", variant: "Pedas" });
+  assert.deepStrictEqual(splitSelection(perDish, "Nasi  Goreng"), { dish: "Nasi  Goreng", variant: "" });
+  assert.deepStrictEqual(splitSelection(perDish, "Pizza"), { dish: "", variant: "" });
+  assert.deepStrictEqual(splitSelection(menuDishOptions(single), "sapi"), { dish: "Soto", variant: "Sapi" });
+
   console.log("dishes.test.ts ok");
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useId, useState, useTransition } from "react";
 import type { Role } from "@prisma/client";
 import {
   addMemberAction,
@@ -11,16 +11,23 @@ import {
   createGroupAction,
   deleteGroupAction,
   updateUserGroupAction,
+  setUserActiveAction,
+  checkTelegramAction,
   type ActionState,
 } from "./actions";
 import { id } from "@/lib/id";
+import type { TelegramStatus } from "@/lib/telegram-status";
 import { Button, Input, Card } from "@/components/ui";
+import { TelegramStatusBadge } from "@/components/account-status-cards";
 
 export type UserItem = {
   id: string;
   name: string;
   role: Role;
   telegramChatId?: string | null;
+  telegramStatus: TelegramStatus;
+  telegramLink: string;
+  active: boolean;
   groupId?: string | null;
   groupName?: string | null;
   createdAt: string;
@@ -32,6 +39,8 @@ export type GroupItem = {
   userCount: number;
 };
 
+type StatusFilter = "all" | "telegram" | "away";
+
 export function UsersTable({
   users,
   groups,
@@ -42,444 +51,291 @@ export function UsersTable({
   currentUserId: string;
 }) {
   const [search, setSearch] = useState("");
-  const [selectedGroupFilter, setSelectedGroupFilter] = useState("ALL");
+  const [groupFilter, setGroupFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showGroupManagement, setShowGroupManagement] = useState(false);
+  const [showGroups, setShowGroups] = useState(false);
   const t = id.users;
 
+  // Yono does not order, so only orderers count toward Telegram problems
+  const needsTelegram = (u: UserItem) => u.role !== "yono" && u.active && u.telegramStatus !== "ok";
+  const attentionCount = users.filter(needsTelegram).length;
+
   const filteredUsers = users.filter((u) => {
-    const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase());
-    if (!matchesSearch) return false;
-    if (selectedGroupFilter === "ALL") return true;
-    if (selectedGroupFilter === "NONE") return !u.groupId;
-    return u.groupId === selectedGroupFilter;
+    if (!u.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
+    if (statusFilter === "telegram" && !needsTelegram(u)) return false;
+    if (statusFilter === "away" && u.active) return false;
+    if (groupFilter === "ALL") return true;
+    if (groupFilter === "NONE") return !u.groupId;
+    return u.groupId === groupFilter;
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Search, Filter, and Action Bar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t.searchPlaceholder}
-            className="w-full text-sm"
+            aria-label={t.searchPlaceholder}
+            className="w-full text-base sm:min-w-[200px] sm:flex-1"
           />
-          <select
-            value={selectedGroupFilter}
-            onChange={(e) => setSelectedGroupFilter(e.target.value)}
-            className="neo-select text-sm h-11 min-w-[160px]"
-            aria-label={t.filterGroup}
-          >
-            <option value="ALL">{t.allGroups}</option>
-            <option value="NONE">{t.noGroup}</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                📁 {g.name} ({g.userCount})
-              </option>
-            ))}
-          </select>
+          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex">
+            <select
+              value={groupFilter}
+              onChange={(e) => setGroupFilter(e.target.value)}
+              className="neo-select min-h-[44px] text-sm sm:w-44"
+              aria-label={t.filterGroup}
+            >
+              <option value="ALL">{t.allGroups}</option>
+              <option value="NONE">{t.noGroup}</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name} ({g.userCount})
+                </option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              className="neo-select min-h-[44px] text-sm sm:w-48"
+              aria-label={t.filterStatus}
+            >
+              <option value="all">{t.allStatus}</option>
+              <option value="telegram">{t.tgBadgeNone} / {t.tgBadgeFailed}</option>
+              <option value="away">{t.away}</option>
+            </select>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Button
             type="button"
-            variant={showGroupManagement ? "default" : "ghost"}
-            onClick={() => setShowGroupManagement((v) => !v)}
-            className="whitespace-nowrap min-h-[44px] flex-1 sm:flex-initial"
-          >
-            📁 {t.manageGroups} ({groups.length})
-          </Button>
-          <Button
-            type="button"
-            variant={showAddForm ? "ghost" : "primary"}
+            variant={showAddForm ? "default" : "primary"}
             onClick={() => setShowAddForm((v) => !v)}
-            className="whitespace-nowrap min-h-[44px] flex-1 sm:flex-initial"
+            aria-expanded={showAddForm}
+            className="min-h-[44px] text-sm"
           >
-            {showAddForm ? "Tutup Form" : `+ ${t.addUser}`}
+            {showAddForm ? t.closeForm : `+ ${t.addUser}`}
           </Button>
+          {/* Wrapper carries lg:hidden because .neo-btn sets display and would win over it */}
+          <div className="lg:hidden">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowGroups((v) => !v)}
+              aria-expanded={showGroups}
+              className="min-h-[44px] w-full text-sm"
+            >
+              {t.manageGroups} ({groups.length})
+            </Button>
+          </div>
+          <TelegramCheckButton />
         </div>
-      </div>
 
-      {/* Group Management Section */}
-      {showGroupManagement && (
-        <ManageGroupsCard
-          groups={groups}
-          onClose={() => setShowGroupManagement(false)}
-        />
-      )}
+        {attentionCount > 0 && statusFilter !== "telegram" && (
+          <div className="flex flex-col gap-2 border-2 border-black bg-amber-100 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-bold">
+              {t.needsAttention(attentionCount)}. {t.needsAttentionHint}
+            </p>
+            <Button
+              type="button"
+              onClick={() => setStatusFilter("telegram")}
+              className="min-h-[44px] shrink-0 text-sm"
+            >
+              {t.showThem}
+            </Button>
+          </div>
+        )}
 
-      {/* Add User Form Section */}
-      {showAddForm && (
-        <Card className="border-2 border-black bg-amber-50">
-          <AddUserForm groups={groups} onSuccess={() => setShowAddForm(false)} />
-        </Card>
-      )}
+        {showAddForm && (
+          <Card className="bg-amber-50">
+            <AddUserForm groups={groups} onSuccess={() => setShowAddForm(false)} />
+          </Card>
+        )}
 
-      {/* User Count summary */}
-      <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-        <span>{t.totalUsers(users.length)}</span>
-        {(search || selectedGroupFilter !== "ALL") && (
-          <span>Ditemukan: {filteredUsers.length}</span>
+        <p className="text-xs font-bold text-[var(--text-muted)]">
+          {t.totalUsers(users.length)}
+          {filteredUsers.length !== users.length && ` · ${t.shown(filteredUsers.length)}`}
+        </p>
+
+        {filteredUsers.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {filteredUsers.map((user) => (
+              <UserRow key={user.id} user={user} groups={groups} isSelf={user.id === currentUserId} />
+            ))}
+          </ul>
+        ) : (
+          <p className="border-2 border-dashed border-black p-6 text-center font-semibold text-[var(--text-muted)]">
+            {t.noUsersFound}
+          </p>
         )}
       </div>
 
-      {/* Responsive Table Layout */}
-      <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b-2 border-black bg-stone-100 text-xs font-black uppercase tracking-wider">
-                <th className="p-3 w-12 text-center">{t.tableNo}</th>
-                <th className="p-3 min-w-[140px]">{t.tableName}</th>
-                <th className="p-3 min-w-[170px]">{t.group}</th>
-                <th className="p-3 min-w-[110px]">{t.tableRole}</th>
-                <th className="p-3 min-w-[190px]">{t.changeRole}</th>
-                <th className="p-3 min-w-[200px]">{t.tableTelegram}</th>
-                <th className="p-3 min-w-[190px]">{t.resetPin}</th>
-                <th className="p-3 min-w-[90px] text-right">{t.tableActions}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map((user, idx) => (
-                  <UserTableRow
-                    key={user.id}
-                    index={idx + 1}
-                    user={user}
-                    groups={groups}
-                    isSelf={user.id === currentUserId}
-                  />
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={8} className="p-6 text-center italic text-stone-500 font-semibold">
-                    {t.noUsersFound}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <aside className={`${showGroups ? "block" : "hidden"} lg:sticky lg:top-4 lg:block`}>
+        <GroupsPanel
+          groups={groups}
+          activeFilter={groupFilter}
+          onFilter={(groupId) => setGroupFilter(groupId)}
+        />
+      </aside>
     </div>
   );
 }
 
-function ManageGroupsCard({
-  groups,
-  onClose,
-}: {
-  groups: GroupItem[];
-  onClose: () => void;
-}) {
-  const [createState, createAction, createPending] = useActionState(createGroupAction, {});
-  const [deleteState, deleteAction, deletePending] = useActionState(deleteGroupAction, {});
+function TelegramCheckButton() {
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<ActionState & { summary?: string }>({});
   const t = id.users;
-  const groupInputId = useId();
 
   return (
-    <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000] p-4 flex flex-col gap-4">
-      <div className="flex items-center justify-between border-b-2 border-black pb-2">
-        <div>
-          <h3 className="font-black text-sm uppercase tracking-wide">
-            📁 {t.manageGroups} ({groups.length})
-          </h3>
-          <p className="text-xs text-[var(--text-muted)] font-medium">
-            Kelompokkan anggota kantor agar mudah memilih nama saat login dan terstruktur.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onClose}
-          className="text-xs py-1 px-2.5 h-8 min-h-[32px]"
-        >
-          Tutup
-        </Button>
-      </div>
-
-      {/* Form Tambah Group */}
-      <form action={createAction} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
-        <div className="flex-1">
-          <label htmlFor={groupInputId} className="block text-xs font-bold uppercase mb-1">
-            {t.addGroup}
-          </label>
-          <Input
-            id={groupInputId}
-            name="name"
-            placeholder={t.groupPlaceholder}
-            required
-            className="w-full text-sm"
-          />
-        </div>
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={createPending}
-          className="whitespace-nowrap min-h-[44px]"
-        >
-          {createPending ? "Menyimpan…" : `+ ${t.addGroup}`}
-        </Button>
-      </form>
-
-      {createState?.error && (
-        <p className="border-2 border-black bg-red-100 p-2 text-xs font-bold text-[var(--danger)]">
-          {createState.error}
-        </p>
-      )}
-      {createState?.ok && (
-        <p className="border-2 border-black bg-emerald-100 p-2 text-xs font-bold text-[var(--success)]">
-          {t.groupAdded}
-        </p>
-      )}
-
-      {/* List Existing Groups */}
-      <div>
-        <h4 className="text-xs font-extrabold uppercase mb-2 tracking-wider text-[var(--text-muted)]">
-          Daftar Group Terdaftar:
-        </h4>
-        {groups.length === 0 ? (
-          <p className="text-xs italic text-stone-500 bg-stone-50 border border-stone-200 p-3">
-            Belum ada group. Silakan buat group baru di atas (misal: &quot;IT&quot;, &quot;Marketing&quot;, &quot;Operasional&quot;).
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-            {groups.map((group) => (
-              <div
-                key={group.id}
-                className="flex items-center justify-between gap-2 border-2 border-black bg-stone-50 p-2 text-xs"
-              >
-                <div className="truncate">
-                  <span className="font-extrabold block truncate">{group.name}</span>
-                  <span className="text-[10px] text-stone-500 font-bold">
-                    {group.userCount} anggota
-                  </span>
-                </div>
-                <form
-                  action={deleteAction}
-                  onSubmit={(e) => {
-                    if (!window.confirm(t.confirmRemoveGroup(group.name))) {
-                      e.preventDefault();
-                    }
-                  }}
-                >
-                  <input type="hidden" name="groupId" value={group.id} />
-                  <Button
-                    type="submit"
-                    variant="danger"
-                    disabled={deletePending}
-                    className="text-[11px] px-2 py-0.5 h-7 min-h-[28px]"
-                    title={`Hapus group ${group.name}`}
-                  >
-                    Hapus
-                  </Button>
-                </form>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {deleteState?.error && (
-        <p className="border-2 border-black bg-red-100 p-2 text-xs font-bold text-[var(--danger)]">
-          {deleteState.error}
-        </p>
-      )}
-      {deleteState?.ok && (
-        <p className="border-2 border-black bg-emerald-100 p-2 text-xs font-bold text-[var(--success)]">
-          {t.groupRemoved}
-        </p>
-      )}
-    </Card>
-  );
-}
-
-function AddUserForm({
-  groups,
-  onSuccess,
-}: {
-  groups: GroupItem[];
-  onSuccess?: () => void;
-}) {
-  const [state, action, pending] = useActionState(async (prev: ActionState, formData: FormData) => {
-    const res = await addMemberAction(prev, formData);
-    if (res.ok && onSuccess) onSuccess();
-    return res;
-  }, {});
-  const t = id.users;
-  const nameId = useId();
-  const pinId = useId();
-  const roleId = useId();
-  const groupIdId = useId();
-  const telegramId = useId();
-
-  return (
-    <form action={action} className="flex flex-col gap-3">
-      <h3 className="font-extrabold text-base uppercase">{t.addUser}</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-        <div>
-          <label htmlFor={nameId} className="block text-xs font-bold uppercase mb-1">
-            {t.name}
-          </label>
-          <Input id={nameId} name="name" placeholder="contoh: Raihan" required className="w-full" />
-        </div>
-        <div>
-          <label htmlFor={pinId} className="block text-xs font-bold uppercase mb-1">
-            {t.initialPin}
-          </label>
-          <Input
-            id={pinId}
-            name="pin"
-            type="password"
-            placeholder="4 digit PIN"
-            minLength={4}
-            required
-            className="w-full"
-          />
-        </div>
-        <div>
-          <label htmlFor={roleId} className="block text-xs font-bold uppercase mb-1">
-            {t.role}
-          </label>
-          <select
-            id={roleId}
-            name="role"
-            className="neo-select w-full min-h-[44px]"
-            defaultValue="member"
-          >
-            <option value="member">{t.roleMember}</option>
-            <option value="admin">{t.roleAdmin}</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor={groupIdId} className="block text-xs font-bold uppercase mb-1">
-            {t.group}
-          </label>
-          <select
-            id={groupIdId}
-            name="groupId"
-            className="neo-select w-full min-h-[44px]"
-            defaultValue=""
-          >
-            <option value="">{t.noGroup}</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor={telegramId} className="block text-xs font-bold uppercase mb-1">
-            {t.telegramId} <span className="text-[var(--text-muted)] font-normal text-[10px]">(opsional)</span>
-          </label>
-          <Input
-            id={telegramId}
-            name="telegramChatId"
-            placeholder={t.telegramPlaceholder}
-            className="w-full"
-          />
-        </div>
-      </div>
-
-      <p className="text-[11px] text-[var(--text-muted)] font-medium">
-        💡 {t.telegramHint}{" "}
-        <a
-          href="https://t.me/yonocateringbot"
-          target="_blank"
-          rel="noreferrer"
-          className="font-bold underline text-[var(--secondary)]"
-        >
-          @yonocateringbot
-        </a>
+    <div className="col-span-2 flex flex-col gap-1 sm:col-span-1">
+      <Button
+        type="button"
+        variant="ghost"
+        disabled={pending}
+        onClick={() => startTransition(async () => setResult(await checkTelegramAction()))}
+        className="min-h-[44px] text-sm"
+      >
+        {pending ? t.telegramChecking : t.telegramCheck}
+      </Button>
+      <p role="status" className="text-xs font-bold">
+        {result.error ? <span className="text-[var(--danger)]">{result.error}</span> : result.summary}
       </p>
-
-      {state?.error && (
-        <p className="border-2 border-black bg-red-100 p-2 text-sm font-bold text-[var(--danger)]">
-          {state.error}
-        </p>
-      )}
-      {state?.ok && (
-        <p className="border-2 border-black bg-emerald-100 p-2 text-sm font-bold text-[var(--success)]">
-          {t.userAdded}
-        </p>
-      )}
-
-      <div className="mt-2 flex justify-end">
-        <Button type="submit" variant="primary" disabled={pending} className="min-h-[44px]">
-          {pending ? "Menyimpan…" : t.add}
-        </Button>
-      </div>
-    </form>
+    </div>
   );
 }
 
-function UserTableRow({
-  index,
-  user,
-  groups,
-  isSelf,
-}: {
-  index: number;
-  user: UserItem;
-  groups: GroupItem[];
-  isSelf: boolean;
-}) {
+function RoleBadge({ role }: { role: Role }) {
+  const t = id.users;
+  const style =
+    role === "yono"
+      ? "bg-[var(--primary)] text-black"
+      : role === "admin"
+        ? "bg-[var(--secondary)] text-white"
+        : "bg-white text-black";
+  const label = role === "yono" ? t.roleYono : role === "admin" ? t.roleAdmin : t.roleMember;
+  return <span className={`border-2 border-black px-2 py-0.5 text-xs font-black ${style}`}>{label}</span>;
+}
+
+function UserRow({ user, groups, isSelf }: { user: UserItem; groups: GroupItem[]; isSelf: boolean }) {
+  const t = id.users;
+  const isYono = user.role === "yono";
+
+  return (
+    <li className={`border-2 border-black ${user.active ? "bg-white" : "bg-stone-100"}`}>
+      <details className="group">
+        <summary className="flex min-h-[56px] cursor-pointer list-none items-center gap-3 p-3 hover:bg-amber-50 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0 flex-1 md:grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:items-center md:gap-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="break-words font-black">{user.name}</span>
+              {isSelf && <span className="text-xs font-bold text-[var(--text-muted)]">({t.you})</span>}
+              <RoleBadge role={user.role} />
+            </div>
+            <p className="mt-1 truncate text-sm font-semibold text-[var(--text-muted)] md:mt-0">
+              {isYono ? "" : user.groupName ?? t.noGroup}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5 md:mt-0 md:justify-end">
+              {!user.active && (
+                <span className="border-2 border-black bg-stone-300 px-2 py-0.5 text-xs font-black">{t.away}</span>
+              )}
+              {!isYono && <TelegramStatusBadge status={user.telegramStatus} />}
+            </div>
+          </div>
+          <span
+            aria-hidden="true"
+            className="shrink-0 border-2 border-black px-2 py-1 text-xs font-black group-open:bg-black group-open:text-white"
+          >
+            {t.manage}
+          </span>
+        </summary>
+        <UserEditor user={user} groups={groups} isSelf={isSelf} />
+      </details>
+    </li>
+  );
+}
+
+function FormMessage({ state, ok }: { state: ActionState; ok: string }) {
+  if (state.error) return <p className="text-xs font-bold text-[var(--danger)]">{state.error}</p>;
+  if (state.ok) return <p className="text-xs font-bold text-[var(--success)]">{ok}</p>;
+  return null;
+}
+
+function UserEditor({ user, groups, isSelf }: { user: UserItem; groups: GroupItem[]; isSelf: boolean }) {
   const [roleState, roleAction, rolePending] = useActionState(updateRoleAction, {});
   const [groupState, groupAction, groupPending] = useActionState(updateUserGroupAction, {});
   const [telegramState, telegramAction, telegramPending] = useActionState(updateTelegramIdAction, {});
   const [pinState, pinAction, pinPending] = useActionState(resetPinAction, {});
+  const [activeState, activeAction, activePending] = useActionState(setUserActiveAction, {});
   const [removeState, removeAction, removePending] = useActionState(removeMemberAction, {});
-  const [newPin, setNewPin] = useState("");
-  const [telegramChatId, setTelegramChatId] = useState(user.telegramChatId ?? "");
-
+  const [copied, setCopied] = useState<"yes" | "failed" | null>(null);
+  const ids = { group: useId(), role: useId(), tg: useId(), pin: useId() };
   const t = id.users;
   const isYono = user.role === "yono";
-  const canModifyRole = !isSelf && !isYono;
-  const canRemove = !isSelf && !isYono;
+  const fieldLabel = "mb-1 block text-xs font-bold text-[var(--text-muted)]";
+  const box = "flex flex-col gap-1.5 border-2 border-black bg-[var(--surface)] p-3";
 
-  const roleBadgeStyle =
-    user.role === "yono"
-      ? "bg-[var(--primary)] text-black"
-      : user.role === "admin"
-        ? "bg-[var(--secondary)] text-white"
-        : "bg-stone-100 text-stone-900";
-
-  const roleLabel =
-    user.role === "yono" ? t.roleYono : user.role === "admin" ? t.roleAdmin : t.roleMember;
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(user.telegramLink);
+      setCopied("yes");
+    } catch {
+      setCopied("failed");
+    }
+  }
 
   return (
-    <tr className="border-b border-stone-200 hover:bg-stone-50 transition-colors">
-      {/* No */}
-      <td className="p-3 text-center text-xs font-bold text-stone-500">{index}</td>
-
-      {/* Name */}
-      <td className="p-3 font-extrabold text-sm">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span>{user.name}</span>
-          {isSelf && (
-            <span className="text-[10px] bg-stone-200 border border-black px-1.5 py-0.2 font-bold uppercase">
-              Kamu
-            </span>
+    <div className="grid grid-cols-1 gap-3 border-t-2 border-black p-3 sm:grid-cols-2">
+      {!isYono && (
+        <div className={`${box} sm:col-span-2`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-black">{t.tableTelegram}</p>
+            <TelegramStatusBadge status={user.telegramStatus} />
+          </div>
+          <p className="text-xs font-semibold text-[var(--text-muted)]">{t.telegramLinkHint}</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button type="button" variant="primary" onClick={copyLink} className="min-h-[44px] text-sm">
+              {t.copyLink}
+            </Button>
+            <form action={telegramAction} className="flex flex-1 gap-2">
+              <input type="hidden" name="memberId" value={user.id} />
+              <label htmlFor={ids.tg} className="sr-only">
+                {t.telegramId}
+              </label>
+              <Input
+                id={ids.tg}
+                name="telegramChatId"
+                inputMode="numeric"
+                placeholder={t.telegramPlaceholder}
+                defaultValue={user.telegramChatId ?? ""}
+                className="min-w-0 flex-1 text-sm"
+              />
+              <Button type="submit" disabled={telegramPending} className="min-h-[44px] shrink-0 text-sm">
+                {telegramPending ? "…" : t.save}
+              </Button>
+            </form>
+          </div>
+          {copied === "yes" && <p className="text-xs font-bold text-[var(--success)]">{t.linkCopied}</p>}
+          {copied === "failed" && (
+            <Input readOnly value={user.telegramLink} onFocus={(e) => e.target.select()} className="text-xs" aria-label={t.copyLink} />
           )}
+          <FormMessage state={telegramState} ok={t.telegramUpdated} />
         </div>
-      </td>
+      )}
 
-      {/* Group & Move Group */}
-      <td className="p-3">
-        {isYono ? (
-          <span className="text-xs text-stone-400 font-semibold italic">—</span>
-        ) : (
-          <form action={groupAction} className="flex items-center gap-1.5">
-            <input type="hidden" name="memberId" value={user.id} />
+      {!isYono && (
+        <form action={groupAction} className={box}>
+          <input type="hidden" name="memberId" value={user.id} />
+          <label htmlFor={ids.group} className={fieldLabel}>
+            {t.group}
+          </label>
+          <div className="flex gap-2">
             <select
+              id={ids.group}
               name="groupId"
               defaultValue={user.groupId ?? ""}
-              disabled={groupPending}
-              className="neo-select text-xs py-1 px-2 h-9 min-w-[110px]"
-              aria-label={`Pilih group untuk ${user.name}`}
+              className="neo-select min-h-[44px] min-w-0 flex-1 text-sm"
             >
               <option value="">{t.noGroup}</option>
               {groups.map((g) => (
@@ -488,158 +344,237 @@ function UserTableRow({
                 </option>
               ))}
             </select>
-            <Button
-              type="submit"
-              variant="ghost"
-              disabled={groupPending}
-              className="text-xs px-2 py-1 h-9 min-h-[36px] whitespace-nowrap"
-              title={t.moveGroup}
-            >
-              {groupPending ? "…" : "Pindah"}
+            <Button type="submit" disabled={groupPending} className="min-h-[44px] shrink-0 text-sm">
+              {groupPending ? "…" : t.save}
             </Button>
-            {groupState?.error && (
-              <span className="text-[11px] font-bold text-red-600 block">{groupState.error}</span>
-            )}
-            {groupState?.ok && (
-              <span className="text-[11px] font-bold text-green-600 block">✓</span>
-            )}
-          </form>
-        )}
-      </td>
+          </div>
+          <FormMessage state={groupState} ok={t.groupMoved} />
+        </form>
+      )}
 
-      {/* Role Badge */}
-      <td className="p-3">
-        <span
-          className={`inline-block border-2 border-black px-2 py-0.5 text-xs font-black uppercase ${roleBadgeStyle}`}
-        >
-          {roleLabel}
-        </span>
-      </td>
-
-      {/* Role Changer */}
-      <td className="p-3">
-        {canModifyRole ? (
-          <form action={roleAction} className="flex items-center gap-1.5">
-            <input type="hidden" name="memberId" value={user.id} />
+      {!isYono && !isSelf && (
+        <form action={roleAction} className={box}>
+          <input type="hidden" name="memberId" value={user.id} />
+          <label htmlFor={ids.role} className={fieldLabel}>
+            {t.role}
+          </label>
+          <div className="flex gap-2">
             <select
+              id={ids.role}
               name="role"
               defaultValue={user.role}
-              disabled={rolePending}
-              className="neo-select text-xs py-1 px-2 h-9 min-w-[110px]"
+              className="neo-select min-h-[44px] min-w-0 flex-1 text-sm"
             >
               <option value="member">{t.roleMember}</option>
               <option value="admin">{t.roleAdmin}</option>
             </select>
-            <Button
-              type="submit"
-              variant="ghost"
-              disabled={rolePending}
-              className="text-xs px-2 py-1 h-9 min-h-[36px]"
-            >
-              {rolePending ? "…" : "Ubah"}
+            <Button type="submit" disabled={rolePending} className="min-h-[44px] shrink-0 text-sm">
+              {rolePending ? "…" : t.save}
             </Button>
-            {roleState?.error && (
-              <span className="text-[11px] font-bold text-red-600 block">{roleState.error}</span>
-            )}
-            {roleState?.ok && (
-              <span className="text-[11px] font-bold text-green-600 block">✓</span>
-            )}
-          </form>
-        ) : (
-          <span className="text-xs text-stone-400 font-semibold italic">
-            {isYono ? "Terkunci" : "Akun Sendiri"}
-          </span>
-        )}
-      </td>
-
-      {/* Telegram Chat ID */}
-      <td className="p-3">
-        <form action={telegramAction} className="flex items-center gap-1.5">
-          <input type="hidden" name="memberId" value={user.id} />
-          <Input
-            name="telegramChatId"
-            placeholder="Angka ID"
-            value={telegramChatId}
-            onChange={(e) => setTelegramChatId(e.target.value)}
-            className="text-xs py-1 px-2 h-9 max-w-[120px]"
-          />
-          <Button
-            type="submit"
-            variant="ghost"
-            disabled={telegramPending}
-            className="text-xs px-2 py-1 h-9 min-h-[36px] whitespace-nowrap"
-            title="Simpan Telegram Chat ID"
-          >
-            {telegramPending ? "…" : "Simpan"}
-          </Button>
-          {telegramState?.error && (
-            <span className="text-[11px] font-bold text-red-600 block">{telegramState.error}</span>
-          )}
-          {telegramState?.ok && (
-            <span className="text-[11px] font-bold text-green-600 block">✓</span>
-          )}
+          </div>
+          <FormMessage state={roleState} ok={t.roleUpdated} />
         </form>
-      </td>
+      )}
 
-      {/* Reset PIN */}
-      <td className="p-3">
-        <form action={pinAction} className="flex items-center gap-1.5">
-          <input type="hidden" name="memberId" value={user.id} />
+      <form action={pinAction} className={box}>
+        <input type="hidden" name="memberId" value={user.id} />
+        <label htmlFor={ids.pin} className={fieldLabel}>
+          {t.newPin}
+        </label>
+        <div className="flex gap-2">
           <Input
+            id={ids.pin}
             name="pin"
             type="password"
-            placeholder="PIN baru"
+            inputMode="numeric"
             minLength={4}
-            value={newPin}
-            onChange={(e) => setNewPin(e.target.value)}
             required
-            className="text-xs py-1 px-2 h-9 max-w-[100px]"
+            placeholder="min. 4 digit"
+            className="min-w-0 flex-1 text-sm"
           />
-          <Button
-            type="submit"
-            variant="ghost"
-            disabled={pinPending || newPin.length < 4}
-            className="text-xs px-2 py-1 h-9 min-h-[36px] whitespace-nowrap"
-          >
+          <Button type="submit" disabled={pinPending} className="min-h-[44px] shrink-0 text-sm">
             {pinPending ? "…" : t.resetPin}
           </Button>
-          {pinState?.error && (
-            <span className="text-[11px] font-bold text-red-600 block">{pinState.error}</span>
-          )}
-          {pinState?.ok && (
-            <span className="text-[11px] font-bold text-green-600 block">✓</span>
-          )}
-        </form>
-      </td>
+        </div>
+        <FormMessage state={pinState} ok={t.pinUpdated} />
+      </form>
 
-      {/* Remove Button */}
-      <td className="p-3 text-right">
-        {canRemove ? (
-          <form
-            action={removeAction}
-            onSubmit={(e) => {
-              if (!window.confirm(t.confirmRemove(user.name))) {
-                e.preventDefault();
-              }
-            }}
+      {!isYono && (
+        <form action={activeAction} className={box}>
+          <input type="hidden" name="memberId" value={user.id} />
+          <input type="hidden" name="active" value={user.active ? "no" : "yes"} />
+          <p className="text-sm font-black">{user.active ? t.presentTitle : t.away}</p>
+          <p className="text-xs font-semibold text-[var(--text-muted)]">{t.awayHint}</p>
+          <Button
+            type="submit"
+            variant={user.active ? "default" : "primary"}
+            disabled={activePending}
+            className="min-h-[44px] text-sm"
           >
-            <input type="hidden" name="memberId" value={user.id} />
-            <Button
-              type="submit"
-              variant="danger"
-              disabled={removePending}
-              className="text-xs px-2 py-1 h-9 min-h-[36px]"
-            >
-              {removePending ? "…" : t.remove}
-            </Button>
-            {removeState?.error && (
-              <span className="text-[11px] font-bold text-red-600 block">{removeState.error}</span>
-            )}
-          </form>
-        ) : (
-          <span className="text-xs text-stone-300 font-bold">—</span>
-        )}
-      </td>
-    </tr>
+            {activePending ? "…" : user.active ? t.setAway : t.setActive}
+          </Button>
+          <FormMessage state={activeState} ok={t.saved} />
+        </form>
+      )}
+
+      {!isYono && !isSelf && (
+        <form
+          action={removeAction}
+          onSubmit={(e) => {
+            if (!window.confirm(t.confirmRemove(user.name))) e.preventDefault();
+          }}
+          className="flex flex-col gap-1.5 sm:col-span-2 sm:items-end"
+        >
+          <input type="hidden" name="memberId" value={user.id} />
+          <Button type="submit" variant="danger" disabled={removePending} className="min-h-[44px] text-sm">
+            {removePending ? "…" : `${t.remove} ${user.name}`}
+          </Button>
+          <FormMessage state={removeState} ok="" />
+        </form>
+      )}
+    </div>
+  );
+}
+
+function GroupsPanel({
+  groups,
+  activeFilter,
+  onFilter,
+}: {
+  groups: GroupItem[];
+  activeFilter: string;
+  onFilter: (groupId: string) => void;
+}) {
+  const [createState, createAction, createPending] = useActionState(createGroupAction, {});
+  const [deleteState, deleteAction, deletePending] = useActionState(deleteGroupAction, {});
+  const t = id.users;
+  const inputId = useId();
+
+  return (
+    <Card className="flex flex-col gap-4">
+      <div>
+        <h2 className="font-black">
+          {t.manageGroups} ({groups.length})
+        </h2>
+        <p className="text-xs font-semibold text-[var(--text-muted)]">{t.groupsHint}</p>
+      </div>
+
+      <form action={createAction} className="flex flex-col gap-1.5">
+        <label htmlFor={inputId} className="text-xs font-bold text-[var(--text-muted)]">
+          {t.groupName}
+        </label>
+        <div className="flex gap-2">
+          <Input id={inputId} name="name" placeholder={t.groupPlaceholder} required className="min-w-0 flex-1 text-sm" />
+          <Button type="submit" variant="primary" disabled={createPending} className="min-h-[44px] shrink-0 text-sm">
+            {createPending ? "…" : t.addGroupBtn}
+          </Button>
+        </div>
+        <FormMessage state={createState} ok={t.groupAdded} />
+      </form>
+
+      {groups.length === 0 ? (
+        <p className="border-2 border-dashed border-black p-3 text-sm font-semibold text-[var(--text-muted)]">
+          {t.noGroups}
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y-2 divide-black border-2 border-black">
+          {groups.map((group) => {
+            const selected = activeFilter === group.id;
+            return (
+              <li key={group.id} className={`flex items-center gap-2 p-2 ${selected ? "bg-amber-100" : "bg-white"}`}>
+                <button
+                  type="button"
+                  onClick={() => onFilter(selected ? "ALL" : group.id)}
+                  aria-pressed={selected}
+                  className="min-h-[44px] min-w-0 flex-1 text-left hover:underline"
+                >
+                  <span className="block truncate font-black">{group.name}</span>
+                  <span className="text-xs font-semibold text-[var(--text-muted)]">
+                    {t.groupMembers(group.userCount)}
+                    {selected ? ` · ${t.filtering}` : ""}
+                  </span>
+                </button>
+                <form
+                  action={deleteAction}
+                  onSubmit={(e) => {
+                    if (!window.confirm(t.confirmRemoveGroup(group.name))) e.preventDefault();
+                  }}
+                >
+                  <input type="hidden" name="groupId" value={group.id} />
+                  <Button
+                    type="submit"
+                    variant="danger"
+                    disabled={deletePending}
+                    className="min-h-[44px] text-xs"
+                    aria-label={`${t.remove} group ${group.name}`}
+                  >
+                    {t.remove}
+                  </Button>
+                </form>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <FormMessage state={deleteState} ok={t.groupRemoved} />
+    </Card>
+  );
+}
+
+function AddUserForm({ groups, onSuccess }: { groups: GroupItem[]; onSuccess?: () => void }) {
+  const [state, action, pending] = useActionState(async (prev: ActionState, formData: FormData) => {
+    const res = await addMemberAction(prev, formData);
+    if (res.ok && onSuccess) onSuccess();
+    return res;
+  }, {});
+  const t = id.users;
+  const ids = { name: useId(), pin: useId(), role: useId(), group: useId() };
+  const fieldLabel = "mb-1 block text-xs font-bold text-[var(--text-muted)]";
+
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <h2 className="font-black">{t.addUser}</h2>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div>
+          <label htmlFor={ids.name} className={fieldLabel}>
+            {t.name}
+          </label>
+          <Input id={ids.name} name="name" placeholder="contoh: Raihan" required className="w-full" />
+        </div>
+        <div>
+          <label htmlFor={ids.pin} className={fieldLabel}>
+            {t.initialPin}
+          </label>
+          <Input id={ids.pin} name="pin" type="password" inputMode="numeric" minLength={4} required className="w-full" />
+        </div>
+        <div>
+          <label htmlFor={ids.role} className={fieldLabel}>
+            {t.role}
+          </label>
+          <select id={ids.role} name="role" className="neo-select min-h-[44px] w-full" defaultValue="member">
+            <option value="member">{t.roleMember}</option>
+            <option value="admin">{t.roleAdmin}</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor={ids.group} className={fieldLabel}>
+            {t.group}
+          </label>
+          <select id={ids.group} name="groupId" className="neo-select min-h-[44px] w-full" defaultValue="">
+            <option value="">{t.noGroup}</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <p className="text-xs font-semibold text-[var(--text-muted)]">{t.addUserTelegramHint}</p>
+      <FormMessage state={state} ok={t.userAdded} />
+      <Button type="submit" variant="primary" disabled={pending} className="min-h-[44px] sm:self-end">
+        {pending ? "Menyimpan…" : t.add}
+      </Button>
+    </form>
   );
 }

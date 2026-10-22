@@ -24,7 +24,7 @@ export default async function YonoHomePage({
     getMenuDay(dateKey, m),
     getDefaultDishes(),
     db.user.findMany({
-      where: { role: { not: "yono" } },
+      where: { role: { not: "yono" }, active: true },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
@@ -120,6 +120,7 @@ export default async function YonoHomePage({
                 dish: menu.dish,
                 subDishes: menu.subDishes,
                 addOns: menu.addOns,
+                dishOptions: menu.dishOptions,
                 note: menu.note,
                 cutoffOverride: menu.cutoffOverride,
               }

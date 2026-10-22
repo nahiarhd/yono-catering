@@ -17,9 +17,10 @@ import {
   sendTelegramMessage,
 } from "@/lib/telegram";
 
-import { parseSubDishes, formatSubDishes, computeSelectionDish } from "@/lib/dishes";
+import { flattenDishOptions, parseDishOptions, resolveMenuSelection } from "@/lib/dishes";
 import { orderEntryKeyboard } from "@/lib/telegram-order";
 import { broadcastRealtime } from "@/lib/realtime";
+import { recordTelegramDelivery } from "@/lib/telegram-status";
 
 export type ActionState = { error?: string; ok?: boolean; menuId?: string };
 
@@ -31,15 +32,10 @@ export async function postMenuAction(
 
   const dateKey = String(formData.get("dateKey") ?? "");
   const menuId = String(formData.get("menuId") ?? "").trim() || null;
-  const dish = String(formData.get("dish") ?? "").trim();
+  const dishOptions = parseDishOptions(String(formData.get("dishOptions") ?? ""));
+  const { dish, subDishes, addOns } = flattenDishOptions(dishOptions);
   // Same fallback as the preset cards: no warung name means the dish names the warung
   const vendor = String(formData.get("vendor") ?? "").trim() || dish;
-  const subDishesRaw = String(formData.get("subDishes") ?? "").trim();
-  const subDishesList = parseSubDishes(subDishesRaw);
-  const subDishes = subDishesList.length > 0 ? formatSubDishes(subDishesList) : null;
-  const addOnsRaw = String(formData.get("addOns") ?? "").trim();
-  const addOnsList = parseSubDishes(addOnsRaw);
-  const addOns = addOnsList.length > 0 ? formatSubDishes(addOnsList) : null;
   const menuNote = String(formData.get("menuNote") ?? "").trim() || null;
   const cutoffRaw = String(formData.get("cutoffOverride") ?? "").trim();
   const cutoffOverride = cutoffRaw ? cutoffRaw : null;
@@ -61,6 +57,7 @@ export async function postMenuAction(
     dish,
     subDishes,
     addOns,
+    dishOptions,
     note: menuNote,
     cutoffOverride,
   });
@@ -68,7 +65,7 @@ export async function postMenuAction(
   if (isNew) {
     const cutoff = effectiveCutoff(settings.standingCutoff, cutoffOverride);
     const members = await db.user.findMany({
-      where: { role: { not: "yono" } },
+      where: { role: { not: "yono" }, active: true },
       select: { telegramChatId: true },
     });
 
@@ -86,9 +83,10 @@ export async function postMenuAction(
           note: menuNote,
           appUrl: getAppUrl(),
         });
-        await sendTelegramBroadcast(telegramChatIds, broadcastText, {
+        const sent = await sendTelegramBroadcast(telegramChatIds, broadcastText, {
           inline_keyboard: orderEntryKeyboard(dateKey, getAppUrl()),
         });
+        await recordTelegramDelivery(sent.reached, sent.unreachable);
       } catch (err) {
         console.error("Gagal mengirim broadcast Telegram:", err);
       }
@@ -120,6 +118,7 @@ export async function pingTelegramRemindersAction(
   const pendingMembers = await db.user.findMany({
     where: {
       role: { not: "yono" },
+      active: true,
       id: { notIn: Array.from(respondedUserIds) },
       telegramChatId: { not: null },
     },
@@ -153,13 +152,17 @@ export async function pingTelegramRemindersAction(
 
   let sent = 0;
   const failureReasons: string[] = [];
+  const reached: string[] = [];
+  const unreachable: string[] = [];
 
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     const m = validMembers[i];
     if (r.status === "fulfilled" && r.value.ok) {
       sent++;
+      reached.push(m.telegramChatId!);
     } else {
+      if (r.status === "fulfilled" && r.value.unreachable) unreachable.push(m.telegramChatId!);
       const err =
         r.status === "fulfilled"
           ? r.value.error || "Gagal"
@@ -167,6 +170,8 @@ export async function pingTelegramRemindersAction(
       failureReasons.push(`${m.name}: ${err}`);
     }
   }
+
+  await recordTelegramDelivery(reached, unreachable);
 
   if (sent === 0) {
     const firstReason = failureReasons[0] || "Pesan gagal terkirim";
@@ -199,10 +204,7 @@ export async function recordMemberResponseAction(
   const wants = wantsRaw === "yes";
   const selectedDish = String(formData.get("selectedDish") ?? "").trim();
   const selectedVariant = String(formData.get("selectedVariant") ?? "").trim();
-  const subDishRaw = String(formData.get("subDish") ?? formData.get("swapDish") ?? "").trim();
   const addOnsRaw = String(formData.get("addOns") ?? "").trim();
-  const addOnsList = parseSubDishes(addOnsRaw);
-  const addOns = wants && addOnsList.length > 0 ? formatSubDishes(addOnsList) : null;
   const note = String(formData.get("note") ?? "").trim() || null;
 
   if (!dateKey || !userId) {
@@ -219,41 +221,18 @@ export async function recordMemberResponseAction(
     return { error: id.errors.memberNotFound };
   }
 
-  const dishOptions = parseSubDishes(menu.dish);
-  const menuSubDishes = parseSubDishes(menu.subDishes);
-
   let swapDish: string | null = null;
+  let addOns: string | null = null;
   if (wants) {
-    if (dishOptions.length > 1) {
-      if (selectedDish) {
-        swapDish = computeSelectionDish({
-          isMultiDish: true,
-          selectedDish,
-          selectedVariant,
-        });
-      } else if (subDishRaw) {
-        swapDish = subDishRaw;
-      } else {
-        return { error: "Silakan pilih salah satu menu masakan." };
-      }
-    } else {
-      if (selectedVariant) {
-        swapDish = selectedVariant;
-      } else if (subDishRaw) {
-        swapDish = subDishRaw;
-      }
-    }
-
-    if (menuSubDishes.length > 0) {
-      if (!selectedVariant && (!subDishRaw || (selectedDish && !selectedVariant))) {
-        return { error: id.response.variantRequired };
-      }
-    }
+    const selection = resolveMenuSelection(menu, { selectedDish, selectedVariant, addOns: addOnsRaw });
+    if (selection === "dishRequired") return { error: "Silakan pilih salah satu menu masakan." };
+    if (selection === "variantRequired") return { error: id.response.variantRequired };
+    ({ swapDish, addOns } = selection);
   }
 
   await saveResponse(menu, userId, {
     wants,
-    swapDish: wants ? swapDish : null,
+    swapDish,
     addOns,
     note,
   });

@@ -1,291 +1,172 @@
 "use client";
 
-import { useState, useEffect, useActionState } from "react";
+import { useState, useEffect, useActionState, useId } from "react";
 import {
   addDefaultDishAction,
   updateDefaultDishAction,
   removeDefaultDishAction,
 } from "@/app/settings/actions";
-import { formatSubDishes, type DefaultDish } from "@/lib/dishes";
+import { presetDishOptions, type DefaultDish, type DishOption } from "@/lib/dishes";
 import { id } from "@/lib/id";
 import { Button, Input, Card } from "./ui";
+import { DishOptionsList } from "./dish-options-list";
+import { DishOptionsEditor, emptyDishOption } from "./dish-options-editor";
 
-export function DefaultDishesForm({ dishes }: { dishes: (DefaultDish | string)[] }) {
+export function DefaultDishesForm({ dishes }: { dishes: DefaultDish[] }) {
   const t = id.settings;
-  const [editingDishName, setEditingDishName] = useState<string | null>(null);
-
-  const parsedDishes: DefaultDish[] = dishes.map((d) =>
-    typeof d === "string" ? { name: d, note: null } : d
-  );
+  // One form open at a time: a preset being edited, "new", or none
+  const [open, setOpen] = useState<string | null>(dishes.length === 0 ? "new" : null);
 
   return (
     <Card>
-      <p className="neo-label">{t.defaultDishes}</p>
-      <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">{t.defaultDishesHint}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="neo-label">{t.defaultDishes}</p>
+          <p className="mt-1 text-sm font-semibold text-[var(--text-muted)]">{t.defaultDishesHint}</p>
+        </div>
+        {open !== "new" && (
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => setOpen("new")}
+            className="min-h-[44px] shrink-0 text-sm"
+          >
+            + {t.addDish}
+          </Button>
+        )}
+      </div>
 
-      {parsedDishes.length > 0 ? (
-        <ul className="neo-dish-list mt-4 space-y-2">
-          {parsedDishes.map((dish) => (
-            <DefaultDishRow
-              key={dish.name}
-              dish={dish}
-              isEditing={editingDishName === dish.name}
-              onStartEdit={() => setEditingDishName(dish.name)}
-              onCancelEdit={() => setEditingDishName(null)}
-            />
+      {open === "new" && (
+        <div className="mt-4 border-2 border-black bg-amber-50 p-3">
+          <PresetForm onDone={() => setOpen(null)} canCancel={dishes.length > 0} />
+        </div>
+      )}
+
+      {dishes.length > 0 ? (
+        <ul className="mt-4 flex flex-col gap-3">
+          {dishes.map((dish) => (
+            <li key={dish.name} className="border-2 border-black bg-white p-3">
+              {open === dish.name ? (
+                <PresetForm preset={dish} onDone={() => setOpen(null)} canCancel />
+              ) : (
+                <PresetRow dish={dish} onEdit={() => setOpen(dish.name)} />
+              )}
+            </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-4 text-sm font-bold text-[var(--text-muted)]">{id.yono.dishPlaceholder}</p>
+        open !== "new" && (
+          <p className="mt-4 text-sm font-bold text-[var(--text-muted)]">{t.noDefaultDishes}</p>
+        )
       )}
-
-      <AddDefaultDishForm />
     </Card>
   );
 }
 
-function DefaultDishRow({
-  dish,
-  isEditing,
-  onStartEdit,
-  onCancelEdit,
-}: {
-  dish: DefaultDish;
-  isEditing: boolean;
-  onStartEdit: () => void;
-  onCancelEdit: () => void;
-}) {
+function PresetRow({ dish, onEdit }: { dish: DefaultDish; onEdit: () => void }) {
   const [state, action, pending] = useActionState(removeDefaultDishAction, {});
   const t = id.settings;
-
-  if (isEditing) {
-    return (
-      <li className="neo-dish-list-item border-2 border-black bg-[var(--surface-sunken)] p-3">
-        <EditDefaultDishForm dish={dish} onDone={onCancelEdit} />
-      </li>
-    );
-  }
+  const options = presetDishOptions(dish);
 
   return (
-    <li className="neo-dish-list-item flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3">
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          {dish.warung && (
-            <span className="text-[11px] font-black uppercase tracking-wider bg-amber-200 border border-black px-2 py-0.5 shadow-[1px_1px_0px_#000]">
-              {dish.warung}
-            </span>
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase text-[var(--text-muted)]">
+            {t.dishWarung} · {t.dishCount(options.length)}
+          </p>
+          {dish.warung ? (
+            <p className="text-lg font-black break-words">{dish.warung}</p>
+          ) : (
+            <p className="text-sm font-bold text-[var(--text-muted)]">{t.noWarungName}</p>
           )}
-          <span className="neo-dish-list-label font-black text-base">{dish.name}</span>
         </div>
-        {dish.subDishes && dish.subDishes.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1 mt-1.5">
-            <span className="text-[11px] font-bold text-[var(--text-muted)] mr-1">
-              {t.dishSubDishesPrefix}
-            </span>
-            {dish.subDishes.map((sub) => (
-              <span
-                key={sub}
-                className="text-[10px] font-bold bg-amber-100 border border-black px-1.5 py-0.5"
-              >
-                {sub}
-              </span>
-            ))}
-          </div>
-        )}
-        {dish.addOns && dish.addOns.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1 mt-1">
-            <span className="text-[11px] font-bold text-[var(--text-muted)] mr-1">
-              {t.dishAddOnsPrefix}
-            </span>
-            {dish.addOns.map((addon) => (
-              <span
-                key={addon}
-                className="text-[10px] font-bold bg-emerald-100 border border-black px-1.5 py-0.5"
-              >
-                + {addon}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-        <Button
-          type="button"
-          onClick={onStartEdit}
-          className="text-xs font-bold"
-          aria-label={`Edit ${dish.name}`}
-        >
-          {t.edit}
-        </Button>
-        <form action={action}>
-          <input type="hidden" name="dish" value={dish.name} />
-          <Button
-            type="submit"
-            variant="danger"
-            disabled={pending}
-            className="text-xs font-bold"
-            aria-label={`Hapus ${dish.name}`}
-          >
-            {t.remove}
+        <div className="flex shrink-0 gap-2">
+          <Button type="button" onClick={onEdit} className="min-h-[44px] text-xs" aria-label={`Edit ${dish.warung || dish.name}`}>
+            {t.edit}
           </Button>
-        </form>
+          <form
+            action={action}
+            onSubmit={(e) => {
+              if (!window.confirm(t.confirmRemoveDish(dish.warung || dish.name))) e.preventDefault();
+            }}
+          >
+            <input type="hidden" name="dish" value={dish.name} />
+            <Button
+              type="submit"
+              variant="danger"
+              disabled={pending}
+              className="min-h-[44px] text-xs"
+              aria-label={`Hapus ${dish.warung || dish.name}`}
+            >
+              {t.remove}
+            </Button>
+          </form>
+        </div>
       </div>
-      {state.ok && <p className="neo-dish-list-msg">{t.dishRemoved}</p>}
-      {state.error && <p className="neo-dish-list-msg neo-dish-list-msg--error">{state.error}</p>}
-    </li>
+      <DishOptionsList options={options} />
+      {state.error && <p className="mt-2 text-sm font-bold text-[var(--danger)]">{state.error}</p>}
+    </div>
   );
 }
 
-function EditDefaultDishForm({
-  dish,
+function PresetForm({
+  preset,
   onDone,
+  canCancel,
 }: {
-  dish: DefaultDish;
+  preset?: DefaultDish;
   onDone: () => void;
+  canCancel: boolean;
 }) {
-  const [state, action, pending] = useActionState(updateDefaultDishAction, {});
+  const [state, action, pending] = useActionState(
+    preset ? updateDefaultDishAction : addDefaultDishAction,
+    {},
+  );
   const t = id.settings;
+  const warungId = useId();
+  const [options, setOptions] = useState<DishOption[]>(
+    preset ? presetDishOptions(preset) : [emptyDishOption()],
+  );
+  const hasDish = options.some((o) => o.name.trim());
 
   useEffect(() => {
-    if (state.ok) {
-      onDone();
-    }
+    if (state.ok) onDone();
   }, [state.ok, onDone]);
-
-  const subDishesValue = formatSubDishes(dish.subDishes);
-  const addOnsValue = formatSubDishes(dish.addOns);
 
   return (
     <form action={action} className="flex flex-col gap-3">
-      <input type="hidden" name="originalDish" value={dish.name} />
-      <div className="flex items-center justify-between">
-        <p className="neo-label text-xs uppercase">{t.editDish}</p>
-        <span className="text-xs font-bold text-[var(--text-muted)] truncate max-w-[200px]">
-          {dish.name}
-        </span>
-      </div>
+      {preset && <input type="hidden" name="originalDish" value={preset.name} />}
+      <p className="neo-label">{preset ? t.editDish : t.addDish}</p>
 
       <div>
-        <label
-          htmlFor={`edit-warung-${dish.name}`}
-          className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1"
-        >
+        <label htmlFor={warungId} className="mb-1 block text-xs font-bold text-[var(--text-muted)]">
           {t.dishWarung}
         </label>
         <Input
-          id={`edit-warung-${dish.name}`}
+          id={warungId}
           name="warung"
-          defaultValue={dish.warung ?? ""}
+          defaultValue={preset?.warung ?? ""}
           placeholder={t.dishWarungPlaceholder}
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor={`edit-dish-${dish.name}`}
-          className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1"
-        >
-          {t.dishName}
-        </label>
-        <Input
-          id={`edit-dish-${dish.name}`}
-          name="dish"
-          defaultValue={dish.name}
-          placeholder={t.dishNamePlaceholder}
           required
+          className="w-full"
         />
       </div>
 
-      <div>
-        <label
-          htmlFor={`edit-sub-${dish.name}`}
-          className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1"
-        >
-          {t.dishSubDishes}
-        </label>
-        <Input
-          id={`edit-sub-${dish.name}`}
-          name="subDishes"
-          defaultValue={subDishesValue}
-          placeholder={t.dishSubDishesPlaceholder}
-        />
-      </div>
+      <DishOptionsEditor value={options} onChange={setOptions} name="dishOptions" />
 
-      <div>
-        <label
-          htmlFor={`edit-addons-${dish.name}`}
-          className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1"
-        >
-          {t.dishAddOns}
-        </label>
-        <Input
-          id={`edit-addons-${dish.name}`}
-          name="addOns"
-          defaultValue={addOnsValue}
-          placeholder={t.dishAddOnsPlaceholder}
-        />
-      </div>
+      {state.error && <p className="text-sm font-bold text-[var(--danger)]">{state.error}</p>}
 
-      {state.error && <p className="font-bold text-xs text-[var(--danger)]">{state.error}</p>}
-
-      <div className="flex items-center gap-2 mt-1">
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={pending}
-          className="text-xs font-bold flex-1"
-        >
-          {pending ? "Menyimpan…" : t.saveDish}
-        </Button>
-        <Button
-          type="button"
-          onClick={onDone}
-          disabled={pending}
-          className="text-xs font-bold"
-        >
-          {t.cancel}
+      <div className="flex flex-col-reverse gap-2 border-t-2 border-black pt-3 sm:flex-row sm:justify-end">
+        {canCancel && (
+          <Button type="button" onClick={onDone} disabled={pending} className="min-h-[44px]">
+            {t.cancel}
+          </Button>
+        )}
+        <Button type="submit" variant="primary" disabled={pending || !hasDish} className="min-h-[44px]">
+          {pending ? "Menyimpan…" : preset ? t.saveDish : t.saveNewDish}
         </Button>
       </div>
-    </form>
-  );
-}
-
-function AddDefaultDishForm() {
-  const [state, action, pending] = useActionState(addDefaultDishAction, {});
-  const t = id.settings;
-
-  return (
-    <form action={action} className="mt-4 flex flex-col gap-3 border-t-2 border-black pt-4">
-      <p className="neo-label">{t.addDish}</p>
-      <div>
-        <label htmlFor="dishWarungInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
-          {t.dishWarung}
-        </label>
-        <Input id="dishWarungInput" name="warung" placeholder={t.dishWarungPlaceholder} />
-      </div>
-      <div>
-        <label htmlFor="dishNameInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
-          {t.dishName}
-        </label>
-        <Input id="dishNameInput" name="dish" placeholder={t.dishNamePlaceholder} required />
-      </div>
-      <div>
-        <label htmlFor="dishSubDishesInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
-          {t.dishSubDishes}
-        </label>
-        <Input id="dishSubDishesInput" name="subDishes" placeholder={t.dishSubDishesPlaceholder} />
-      </div>
-      <div>
-        <label htmlFor="dishAddOnsInput" className="text-xs font-bold uppercase text-[var(--text-muted)] block mb-1">
-          {t.dishAddOns}
-        </label>
-        <Input id="dishAddOnsInput" name="addOns" placeholder={t.dishAddOnsPlaceholder} />
-      </div>
-      {state.error && <p className="font-bold text-[var(--danger)]">{state.error}</p>}
-      {state.ok && <p className="font-bold text-[var(--success)]">{t.dishAdded}</p>}
-      <Button type="submit" disabled={pending}>
-        {t.add}
-      </Button>
     </form>
   );
 }
