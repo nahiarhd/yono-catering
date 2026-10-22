@@ -36,6 +36,7 @@ model User {
   createdAt        DateTime         @default(now())
   responses        Response[]
   dishPreferences  DishPreference[]
+  announcements    Announcement[]
 }
 
 
@@ -91,4 +92,15 @@ model DishPreference {
   user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, forDish])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String?
+  message     String
+  sentCount   Int      @default(0)
+  failedCount Int      @default(0)
+  authorId    String?
+  author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
 }

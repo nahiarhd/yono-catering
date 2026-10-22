@@ -1,6 +1,7 @@
 import assert from "assert";
 import {
   escapeHtml,
+  formatAnnouncementMessage,
   formatMenuBroadcastMessage,
   formatReminderMessage,
   getAppUrl,
@@ -64,6 +65,26 @@ function testFormatReminderMessage() {
   assert.ok(!msg.includes("—"), "Must not contain em dash");
 }
 
+function testFormatAnnouncementMessage() {
+  const msgWithTitle = formatAnnouncementMessage({
+    title: "Libur Besok",
+    message: "Besok katering libur ya teman-teman.",
+    appUrl: "https://katering.coofis.id",
+  });
+
+  assert.ok(msgWithTitle.includes("LIBUR BESOK"));
+  assert.ok(msgWithTitle.includes("Besok katering libur ya teman-teman."));
+  assert.ok(msgWithTitle.includes("https://katering.coofis.id/home"));
+  assert.ok(!msgWithTitle.includes("—"), "Must not contain em dash");
+
+  const msgDefault = formatAnnouncementMessage({
+    message: "Info porsi makan malam sudah siap diambil.",
+    appUrl: "https://katering.coofis.id",
+  });
+  assert.ok(msgDefault.includes("PENGUMUMAN KATERING"));
+  assert.ok(msgDefault.includes("Info porsi makan malam sudah siap diambil."));
+}
+
 async function testSendTelegramMessageValidation() {
   const { sendTelegramMessage } = await import("../telegram");
   const prevToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -91,6 +112,7 @@ async function main() {
   testGetBotUsername();
   testFormatMenuBroadcast();
   testFormatReminderMessage();
+  testFormatAnnouncementMessage();
   await testSendTelegramMessageValidation();
   console.log("telegram.test.ts ok");
 }

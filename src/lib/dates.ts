@@ -65,3 +65,14 @@ export function nowInHousehold(now = new Date()) {
     hhmm: `${get("hour")}:${get("minute")}`,
   };
 }
+
+export function formatDateTime(date: Date): string {
+  return new Intl.DateTimeFormat("id-ID", {
+    timeZone: tz(),
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}

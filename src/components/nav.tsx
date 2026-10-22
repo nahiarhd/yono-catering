@@ -32,6 +32,7 @@ export function AppNav({ role }: { role: Role }) {
         <>
           <NavLink href="/home">{t.home}</NavLink>
           <NavLink href="/yono">{t.kitchen}</NavLink>
+          <NavLink href="/announcements">{t.announcements}</NavLink>
           <NavLink href="/reports">{t.reports}</NavLink>
           <NavLink href="/preferences">{t.preferences}</NavLink>
           <NavLink href="/users">{t.users}</NavLink>

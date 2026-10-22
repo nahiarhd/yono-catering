@@ -98,6 +98,30 @@ export function formatReminderMessage({
   return lines.join("\n");
 }
 
+export function formatAnnouncementMessage({
+  title,
+  message,
+  appUrl,
+}: {
+  title?: string | null;
+  message: string;
+  appUrl: string;
+}): string {
+  const safeTitle = title?.trim() ? escapeHtml(title.trim()) : null;
+  const safeMessage = escapeHtml(message.trim());
+
+  const lines = [
+    safeTitle ? `📢 <b>${safeTitle.toUpperCase()}</b>` : "📢 <b>PENGUMUMAN KATERING</b>",
+    "",
+    safeMessage,
+    "",
+    "Buka Yono Catering:",
+    `👉 <a href="${appUrl}/home">${appUrl}/home</a>`,
+  ];
+
+  return lines.join("\n");
+}
+
 export async function sendTelegramMessage(
   chatId: string,
   text: string,

@@ -13,6 +13,7 @@ export const id = {
     preferences: "Lagi ambil preferensi kamu…",
     settings: "Lagi ambil pengaturan…",
     users: "Lagi ambil daftar pengguna…",
+    announcements: "Lagi ambil pengumuman…",
   },
   nav: {
     kitchen: "Dapur",
@@ -20,6 +21,7 @@ export const id = {
     users: "Pengguna",
     preferences: "Preferensi",
     reports: "Rekap & PDF",
+    announcements: "Pengumuman",
     home: "Menu Hari Ini",
     logout: "Keluar",
   },
@@ -399,5 +401,30 @@ export const id = {
     period: "Periode",
     printedAt: "Dicetak",
     subtitle: "Porsi per hari dan per orang, bisa dicetak atau disimpan jadi PDF.",
+  },
+  announcements: {
+    title: "Pengumuman",
+    subtitle: "Kirim pesan pengumuman langsung ke Telegram anggota katering.",
+    formTitle: "Buat Pengumuman Baru",
+    titleLabel: "Judul Pengumuman (opsional)",
+    titlePlaceholder: "Contoh: Libur Katering Besok",
+    messageLabel: "Isi Pesan",
+    messagePlaceholder: "Tulis pesan pengumuman di sini…",
+    recipientInfo: (count: number) =>
+      `Pesan ini akan langsung dikirim ke ${count} anggota yang terhubung ke Telegram.`,
+    noRecipients: "Belum ada anggota yang terhubung ke bot Telegram.",
+    sendBtn: "Kirim Pengumuman",
+    sendingBtn: "Mengirim ke Telegram…",
+    sendSuccess: (sent: number, failed: number) =>
+      failed > 0
+        ? `Pengumuman terkirim ke ${sent} anggota (${failed} gagal).`
+        : `Pengumuman berhasil terkirim ke ${sent} anggota.`,
+    errorEmpty: "Isi pesan pengumuman tidak boleh kosong.",
+    errorFailed: "Gagal mengirim pengumuman.",
+    historyTitle: "Riwayat Pengumuman",
+    noHistory: "Belum ada pengumuman yang dikirim.",
+    sentAt: "Waktu kirim",
+    sentBy: "Pengirim",
+    stats: (sent: number, failed: number) => `Terkirim: ${sent} | Gagal: ${failed}`,
   },
 } as const;
